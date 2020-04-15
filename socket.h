@@ -1,6 +1,8 @@
 #ifndef _H_SOCKET
 #define _H_SOCKET
 
+#include <stdint.h>
+
 namespace fantuan
 {
 
