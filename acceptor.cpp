@@ -1,6 +1,7 @@
 #include "acceptor.h"
 #include "network.h"
 #include <stdio.h>
+#include "connection.h"
 
 namespace fantuan
 {
@@ -30,6 +31,7 @@ int Acceptor::handleRead()
     if (connfd >= 0)
     {
         printf("accept\n");
+        newConnection(connfd);
         // TODO: 
     }
     else
@@ -37,5 +39,10 @@ int Acceptor::handleRead()
         // TODO: fatal error;
     }
     return connfd;
+}
+
+void Acceptor::newConnection(int sockfd)
+{
+    Connection* conn = new Connection(sockfd, this);
 }
 }

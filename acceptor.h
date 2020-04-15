@@ -26,6 +26,8 @@ public:
 
     int handleRead();
 
+    void newConnection(int sockfd);
+
 private:
     Socket m_AcceptSocket;
     bool m_Listening;
