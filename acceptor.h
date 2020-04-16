@@ -28,6 +28,7 @@ public:
     void listen();
     int handleRead();
     void poll();
+    void updateContext(Context* context);
 
 private:
     void _updateContext(int operation, Context* context);

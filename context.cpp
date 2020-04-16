@@ -1,6 +1,6 @@
 #include "context.h"
 #include "connection.h"
-#include <sys/epoll.h>
+#include <stdio.h>
 
 namespace fantuan
 {
@@ -24,8 +24,22 @@ void Context::handleEvent()
     }
     else if (m_Events & EPOLLOUT)
     {
-
+        m_Connection->handleWrite();
     }
+}
+
+void Context::enableWriting()
+{
+    m_Events |= EPOLLOUT;
+    Acceptor* acceptor = m_Connection->getAcceptor();
+    acceptor->updateContext(this);
+}
+
+void Context::disableWriting()
+{
+    m_Events &= ~EPOLLOUT;
+    Acceptor* acceptor = m_Connection->getAcceptor();
+    acceptor->updateContext(this);
 }
 
 }

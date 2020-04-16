@@ -67,6 +67,11 @@ void Acceptor::poll()
     }
 }
 
+void Acceptor::updateContext(Context* context)
+{
+    _updateContext(EPOLL_CTL_MOD, context);
+}
+
 void Acceptor::_updateContext(int operation, Context* context)
 {
     epoll_event event;

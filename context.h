@@ -1,6 +1,8 @@
 #ifndef _H_CONTEXT
 #define _H_CONTEXT
 
+#include <sys/epoll.h>
+
 namespace fantuan
 {
 class Connection;
@@ -28,6 +30,13 @@ public:
     void setEvents(int events)
     {
         m_Events = events;
+    }
+
+    void enableWriting();
+    void disableWriting();
+    bool isWriting() const
+    {
+        return m_Events & EPOLLOUT;
     }
 
 private:

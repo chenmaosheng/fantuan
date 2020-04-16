@@ -18,7 +18,15 @@ public:
         return m_Context;
     }
 
+    Acceptor* getAcceptor() const
+    {
+        return m_Acceptor;
+    }
+
     void handleRead();
+    void handleWrite();
+
+    void send(const void* data, uint32_t len);
 
 private:
     Socket* m_Socket;
