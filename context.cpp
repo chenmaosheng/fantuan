@@ -1,5 +1,6 @@
 #include "context.h"
 #include "connection.h"
+#include <sys/epoll.h>
 
 namespace fantuan
 {
@@ -15,5 +16,16 @@ Context::~Context()
     
 }
 
+void Context::handleEvent()
+{
+    if (m_Events & EPOLLIN)
+    {
+        m_Connection->handleRead();
+    }
+    else if (m_Events & EPOLLOUT)
+    {
+
+    }
+}
 
 }

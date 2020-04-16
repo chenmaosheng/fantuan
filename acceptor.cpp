@@ -62,7 +62,7 @@ void Acceptor::poll()
         }
         else
         {
-            context->getConnection()->handleRead();
+            context->handleEvent();
         }
     }
 }
