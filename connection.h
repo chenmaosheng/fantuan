@@ -18,10 +18,14 @@ public:
         return m_Context;
     }
 
+    void handleRead();
+
 private:
     Socket* m_Socket;
     Acceptor* m_Acceptor;
     Context* m_Context;
+    char m_InputBuffer[65500];
+    char m_OutputBuffer[1024];
 };
 }
 

@@ -3,12 +3,17 @@
 
 namespace fantuan
 {
+class Connection;
 class Context
 {
 public:
-    Context(int sockfd);
+    Context(int sockfd, Connection* conn = nullptr);
     ~Context();
 
+    Connection* getConnection() const
+    {
+        return m_Connection;
+    }
     void handleEvent();
     int getSockFd() const
     {
@@ -28,6 +33,7 @@ public:
 private:
     const int m_sockfd;
     int m_Events;
+    Connection* m_Connection;
 };
 }
 

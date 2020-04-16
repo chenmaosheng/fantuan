@@ -62,21 +62,7 @@ void Acceptor::poll()
         }
         else
         {
-            size_t count;
-            char buf[512];
-            count = network::read(context->getSockFd(), buf, sizeof buf);
-            if (count == -1)
-            {
-                if (errno != EAGAIN)
-                {
-                    // TODO: fatal error
-                }
-            }
-            else if (count == 0)
-            {
-
-            }
-            else printf("%s\n", buf);
+            context->getConnection()->handleRead();
         }
     }
 }
