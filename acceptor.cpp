@@ -12,7 +12,8 @@ Acceptor::Acceptor(uint16_t port, bool reuseport) :
     m_AcceptSocket(network::createsocket()),
     m_Listening(false),
     m_epollfd(::epoll_create1(EPOLL_CLOEXEC)),
-    m_EventList(16)
+    m_EventList(16),
+    m_AcceptContext(m_AcceptSocket.getSockFd())
 {
     m_AcceptSocket.setReuseAddr(true);
     m_AcceptSocket.setReusePort(reuseport);
@@ -28,12 +29,8 @@ void Acceptor::listen()
 {
     m_Listening = true;
     m_AcceptSocket.listen();
-    m_AcceptEvent.data.fd = m_AcceptSocket.getSockFd();
-    m_AcceptEvent.events = EPOLLIN | EPOLLOUT;
-    if (epoll_ctl(m_epollfd, EPOLL_CTL_ADD, m_AcceptSocket.getSockFd(), &m_AcceptEvent) < 0)
-    {
-        // TODO: fatal error
-    }
+    m_AcceptContext.setEvents(EPOLLIN);
+    _updateContext(EPOLL_CTL_ADD, &m_AcceptContext);
 }
 
 int Acceptor::handleRead()
@@ -56,24 +53,18 @@ void Acceptor::poll()
     int n = epoll_wait(m_epollfd, &*m_EventList.begin(), m_EventList.size(), -1);
     for (int i = 0; i < n; ++i)
     {
-        if (m_AcceptSocket.getSockFd() == m_EventList[i].data.fd)
+        Context* context = (Context*)m_EventList[i].data.ptr;
+        if (m_AcceptSocket.getSockFd() == context->getSockFd())
         {
             int fd = handleRead();
             Connection* conn = new Connection(fd, this);
-            epoll_event event;
-            bzero(&event, sizeof(epoll_event));
-            event.data.fd = fd;
-            event.events = EPOLLIN | EPOLLOUT;
-            if (epoll_ctl(m_epollfd, EPOLL_CTL_ADD, fd, &event) < 0)
-            {
-                // todo: fatal error
-            }
+            _updateContext(EPOLL_CTL_ADD, conn->getContext());
         }
         else
         {
             size_t count;
             char buf[512];
-            count = network::read(m_EventList[i].data.fd, buf, sizeof buf);
+            count = network::read(context->getSockFd(), buf, sizeof buf);
             if (count == -1)
             {
                 if (errno != EAGAIN)
@@ -87,6 +78,19 @@ void Acceptor::poll()
             }
             else printf("%s\n", buf);
         }
+    }
+}
+
+void Acceptor::_updateContext(int operation, Context* context)
+{
+    epoll_event event;
+    bzero(&event, sizeof(epoll_event));
+    event.events = context->getEvents();
+    event.data.ptr = context;
+    int fd = context->getSockFd();
+    if (::epoll_ctl(m_epollfd, operation, fd, &event) < 0)
+    {
+        // TODO: fatal error
     }
 }
 

@@ -3,6 +3,7 @@
 
 #include "socket.h"
 #include "acceptor.h"
+#include "context.h"
 
 namespace fantuan
 {
@@ -12,9 +13,15 @@ public:
     Connection(int sockfd, Acceptor* acceptor);
     ~Connection();
 
+    Context* getContext() const
+    {
+        return m_Context;
+    }
+
 private:
     Socket* m_Socket;
     Acceptor* m_Acceptor;
+    Context* m_Context;
 };
 }
 

@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <vector>
 #include <sys/epoll.h>
+#include "context.h"
 
 namespace fantuan
 {
@@ -29,11 +30,15 @@ public:
     void poll();
 
 private:
+    void _updateContext(int operation, Context* context);
+
+private:
     Socket m_AcceptSocket;
     bool m_Listening;
     int m_epollfd;
     std::vector<epoll_event> m_EventList;
     epoll_event	m_AcceptEvent;
+    Context m_AcceptContext;
 };
 }
 
