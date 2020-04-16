@@ -3,6 +3,8 @@
 
 #include "socket.h"
 #include <stdint.h>
+#include <vector>
+#include <sys/epoll.h>
 
 namespace fantuan
 {
@@ -23,14 +25,15 @@ public:
     }
 
     void listen();
-
     int handleRead();
-
-    void newConnection(int sockfd);
+    void poll();
 
 private:
     Socket m_AcceptSocket;
     bool m_Listening;
+    int m_epollfd;
+    std::vector<epoll_event> m_EventList;
+    epoll_event	m_AcceptEvent;
 };
 }
 
