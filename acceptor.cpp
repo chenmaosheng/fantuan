@@ -9,15 +9,15 @@
 namespace fantuan
 {
 Acceptor::Acceptor(uint16_t port, bool reuseport) : 
-    m_AcceptSocket(network::createsocket()),
+    m_acceptfd(network::createsocket()),
     m_Listening(false),
     m_epollfd(::epoll_create1(EPOLL_CLOEXEC)),
     m_EventList(16),
-    m_AcceptContext(m_AcceptSocket.getSockFd())
+    m_AcceptContext(m_acceptfd)
 {
-    m_AcceptSocket.setReuseAddr(true);
-    m_AcceptSocket.setReusePort(reuseport);
-    m_AcceptSocket.bind(port);
+    network::setTcpNoDelay(m_acceptfd, true);
+    network::setReusePort(m_acceptfd, reuseport);
+    network::bind(m_acceptfd, port);
 }
 
 Acceptor::~Acceptor()
@@ -28,14 +28,14 @@ Acceptor::~Acceptor()
 void Acceptor::listen()
 {
     m_Listening = true;
-    m_AcceptSocket.listen();
+    network::listen(m_acceptfd);
     m_AcceptContext.setEvents(EPOLLIN);
     _updateContext(EPOLL_CTL_ADD, &m_AcceptContext);
 }
 
 int Acceptor::handleRead()
 {
-    int connfd = m_AcceptSocket.accept();
+    int connfd = network::accept(m_acceptfd);
     if (connfd >= 0)
     {
         printf("accept\n");
@@ -54,7 +54,7 @@ void Acceptor::poll()
     for (int i = 0; i < n; ++i)
     {
         Context* context = (Context*)m_EventList[i].data.ptr;
-        if (m_AcceptSocket.getSockFd() == context->getSockFd())
+        if (m_acceptfd == context->getSockFd())
         {
             int fd = handleRead();
             Connection* conn = new Connection(fd, this);

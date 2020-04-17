@@ -1,7 +1,6 @@
 #ifndef _H_CONNECTION
 #define _H_CONNECTION
 
-#include "socket.h"
 #include "acceptor.h"
 #include "context.h"
 
@@ -29,7 +28,7 @@ public:
     void send(const void* data, uint32_t len);
 
 private:
-    Socket* m_Socket;
+    int m_sockfd;
     Acceptor* m_Acceptor;
     Context* m_Context;
     char m_InputBuffer[65500];

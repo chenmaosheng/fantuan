@@ -4,6 +4,8 @@
 #include <sys/uio.h>  // readv
 #include <unistd.h>
 #include <strings.h>
+#include <assert.h>
+#include <netinet/tcp.h>
 
 namespace fantuan
 {
@@ -14,7 +16,8 @@ int createsocket()
     int sockfd = ::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
     if (sockfd < 0)
     {
-        // TODO: fatal error
+        assert(false && "createsocket failed");
+        return -1;
     }
     return sockfd;
 }
@@ -29,7 +32,7 @@ void bind(int sockfd, uint16_t port)
     int ret = ::bind(sockfd, (sockaddr*)&serveraddr, sizeof(serveraddr));
     if (ret < 0)
     {
-        // TODO: fatal error
+        assert(false && "bind failed");
     }
 }
 
@@ -38,14 +41,16 @@ void listen(int sockfd)
     int ret = ::listen(sockfd, SOMAXCONN);
     if (ret < 0)
     {
-        // TODO: fatal error
+        assert(false && "listen failed");
     }
 }
 
-int accept(int sockfd, sockaddr* addr)
+int accept(int sockfd)
 {
     socklen_t in_len;
-    int connfd = ::accept4(sockfd, addr, &in_len, SOCK_NONBLOCK | SOCK_CLOEXEC);
+    sockaddr addr;
+    bzero(&addr, sizeof(sockaddr));
+    int connfd = ::accept4(sockfd, &addr, &in_len, SOCK_NONBLOCK | SOCK_CLOEXEC);
     if (connfd < 0)
     {
         int err = errno;
@@ -55,10 +60,12 @@ int accept(int sockfd, sockaddr* addr)
             case EINTR:
             case ECONNABORTED:
             case EPROTO:
+            case EPERM:
+            case EMFILE:
                 errno = err;
                 break;
             default:
-                // TODO: fatal error;
+                assert(false && "accept: unexcepted error");
                 break;
         }
     }
@@ -84,7 +91,7 @@ void close(int sockfd)
 {
     if (::close(sockfd) < 0)
     {
-        // TODO: fatal error
+        assert(false && "close error");
     }
 }
 
@@ -92,7 +99,7 @@ void shutdownWR(int sockfd)
 {
     if (::shutdown(sockfd, SHUT_WR) < 0)
     {
-        // TODO: fatal error
+        assert(false && "shutdown error");
     }
 }
 
@@ -107,5 +114,33 @@ int getsockerror(int sockfd)
     }
     return optval;
 }
+
+void setTcpNoDelay(int sockfd, bool on)
+{
+    int optval = on ? 1 : 0;
+    if (::setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval)) < 0)
+    {
+        assert(false && "set tcp no delay failed");
+    }
+}
+
+void setReuseAddr(int sockfd, bool on)
+{
+    int optval = on ? 1 : 0;
+    if (::setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0)
+    {
+        assert(false && "set reuse addr failed");
+    }
+}
+
+void setReusePort(int sockfd, bool on)
+{
+    int optval = on ? 1 : 0;
+    if (::setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)) < 0)
+    {
+        assert(false && "set reuse port failed");
+    }
+}
+
 }
 }

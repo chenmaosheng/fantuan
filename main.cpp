@@ -1,5 +1,4 @@
 #include <sys/epoll.h>
-#include "socket.h"
 #include "network.h"
 #include <cstdio>
 #include <errno.h>

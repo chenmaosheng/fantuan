@@ -1,7 +1,6 @@
 #ifndef _H_ACCEPTOR
 #define _H_ACCEPTOR
 
-#include "socket.h"
 #include <stdint.h>
 #include <vector>
 #include <sys/epoll.h>
@@ -22,7 +21,7 @@ public:
 
     int getAcceptorFd()
     {
-        return m_AcceptSocket.getSockFd();
+        return m_acceptfd;
     }
 
     void listen();
@@ -34,7 +33,7 @@ private:
     void _updateContext(int operation, Context* context);
 
 private:
-    Socket m_AcceptSocket;
+    int m_acceptfd;
     bool m_Listening;
     int m_epollfd;
     std::vector<epoll_event> m_EventList;

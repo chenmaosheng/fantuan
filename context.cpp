@@ -18,7 +18,7 @@ Context::~Context()
 
 void Context::handleEvent()
 {
-    if (m_Events & (EPOLLIN || EPOLLERR))
+    if (m_Events & (EPOLLIN || EPOLLERR || EPOLLRDHUP || EPOLLPRI))
     {
         m_Connection->handleRead();
     }

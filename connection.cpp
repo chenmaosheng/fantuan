@@ -9,7 +9,7 @@
 namespace fantuan
 {
 Connection::Connection(int sockfd, Acceptor* acceptor) :
-    m_Socket(new Socket(sockfd)),
+    m_sockfd(sockfd),
     m_Acceptor(acceptor)
 {
     m_Context = new Context(sockfd, this);
@@ -26,7 +26,7 @@ Connection::~Connection()
 void Connection::handleRead()
 {
     ssize_t count;
-    count = network::read(m_Socket->getSockFd(), m_InputBuffer, sizeof(m_InputBuffer));
+    count = network::read(m_sockfd, m_InputBuffer, sizeof(m_InputBuffer));
     if (count == -1)
     {
         if (errno != EAGAIN)
@@ -50,7 +50,7 @@ void Connection::handleWrite()
     if (m_Context->isWriting())
     {
         printf("disableWriting\n");
-        ssize_t count = network::write(m_Socket->getSockFd(), m_OutputBuffer, 1024);
+        ssize_t count = network::write(m_sockfd, m_OutputBuffer, 1024);
         if (count > 0)
         {
             printf("handleWrite: %ld\n", count);
@@ -70,7 +70,7 @@ void Connection::send(const void* data, uint32_t len)
     bool fatalError = false;
     if (!m_Context->isWriting())
     {
-        wrote = network::write(m_Socket->getSockFd(), data, len);
+        wrote = network::write(m_sockfd, data, len);
         if (wrote >= 0)
         {
             printf("write: %ld\n", wrote);
