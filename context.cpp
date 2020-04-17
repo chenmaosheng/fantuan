@@ -18,13 +18,17 @@ Context::~Context()
 
 void Context::handleEvent()
 {
-    if (m_Events & EPOLLIN)
+    if (m_Events & (EPOLLIN || EPOLLERR))
     {
         m_Connection->handleRead();
     }
     else if (m_Events & EPOLLOUT)
     {
         m_Connection->handleWrite();
+    }
+    else
+    {
+        // TODO: fatal error
     }
 }
 
