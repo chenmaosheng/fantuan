@@ -20,6 +20,7 @@ int getsockerror(int sockfd);
 void setTcpNoDelay(int sockfd, bool on);
 void setReuseAddr(int sockfd, bool on);
 void setReusePort(int sockfd, bool on);
+void setKeepAlive(int sockfd, bool on);
 }
 }
 

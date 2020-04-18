@@ -142,5 +142,14 @@ void setReusePort(int sockfd, bool on)
     }
 }
 
+void setKeepAlive(int sockfd, bool on)
+{
+    int optval = on ? 1 : 0;
+    if (::setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval)) < 0)
+    {
+        assert(false && "set keepalive failed");
+    }
+}
+
 }
 }
