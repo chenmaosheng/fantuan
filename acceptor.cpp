@@ -7,9 +7,16 @@
 #include <strings.h>
 #include <assert.h>
 #include <fcntl.h>
+#include <signal.h>
 
 namespace fantuan
 {
+struct IgnorePipe
+{
+IgnorePipe() {::signal(SIGPIPE, SIG_IGN);} // ignore sigpipe, must run before socket initialization
+};
+IgnorePipe obj;
+
 Acceptor::Acceptor(uint16_t port) : 
     m_acceptfd(network::createsocket()),
     m_idlefd(::open("/dev/null", O_RDONLY | O_CLOEXEC)),
