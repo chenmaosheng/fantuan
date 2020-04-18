@@ -10,6 +10,7 @@ namespace fantuan
 {
 Acceptor::Acceptor(uint16_t port) : 
     m_acceptfd(network::createsocket()),
+    m_idlefd(::open("/dev/null", O_RDONLY | O_CLOEXEC)),
     m_Listening(false),
     m_epollfd(::epoll_create1(EPOLL_CLOEXEC)),
     m_EventList(m_InitEventListSize),
@@ -27,6 +28,7 @@ Acceptor::Acceptor(uint16_t port) :
 Acceptor::~Acceptor()
 {
     ::close(m_epollfd);
+    ::close(m_idlefd);
 }
 
 void Acceptor::listen()
@@ -47,7 +49,18 @@ int Acceptor::handleRead()
     }
     else
     {
-        // TODO: fatal error;
+        assert(false && "accept failed");
+        // if file descriptor has used up, it'll cause accept failure and return EMFILE error
+        // but it doesn't refuse this connection, still in connection queue, and still can 
+        // trigger fd read event, this will cause busy loop. Use the following way can refuse
+        // connection gracefully
+        if (errno == EMFILE)
+        {
+            ::close(m_idlefd);
+            m_idlefd = ::accept(m_acceptfd, NULL, NULL);
+            ::close(m_idlefd);
+            m_idlefd = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
+        }
     }
     return connfd;
 }

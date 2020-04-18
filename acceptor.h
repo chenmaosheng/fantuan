@@ -37,6 +37,7 @@ private:
 private:
     // accept
     int m_acceptfd;
+    int m_idlefd;
     bool m_Listening;
     Context m_AcceptContext;
     // epoll
