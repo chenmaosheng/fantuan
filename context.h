@@ -44,7 +44,7 @@ public:
     }
     bool isReading() const
     {
-        return m_Events & EPOLLIN;
+        return m_Events & (EPOLLIN | EPOLLPRI);
     }
     void setState(State state)
     {

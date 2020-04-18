@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include "network.h"
 #include <string.h>
+#include <assert.h>
 
 namespace fantuan
 {
@@ -41,7 +42,8 @@ void Connection::handleRead()
     }
     else if (count == 0)
     {
-
+        printf("leave\n");
+        handleClose();
     }
     else 
     {
@@ -66,6 +68,19 @@ void Connection::handleWrite()
             // TODO: fatal error
         }
     }
+}
+
+void Connection::handleClose()
+{
+    m_Context->disableWriting();
+    m_Context->disableReading();
+    m_CloseHandler(this);
+}
+
+void Connection::handleError()
+{
+    int err = network::getsockerror(m_sockfd);
+    assert(false && "network error");
 }
 
 void Connection::send(const void* data, uint32_t len)
@@ -107,6 +122,8 @@ void Connection::connectEstablished()
 void Connection::connectDestroyed()
 {
     // TODO:
+    m_Acceptor->removeContext(m_Context);
+    network::close(m_sockfd);
 }
 
 

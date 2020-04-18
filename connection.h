@@ -29,10 +29,16 @@ public:
 
     void handleRead();
     void handleWrite();
+    void handleClose();
+    void handleError();
 
     void send(const void* data, uint32_t len);
     void connectEstablished();
     void connectDestroyed();
+    void setCloseHandler(const OnClose& handler)
+    {
+        m_CloseHandler = std::move(handler);
+    }
 
 private:
     int m_sockfd;
@@ -41,6 +47,7 @@ private:
     char m_InputBuffer[65500];
     char m_OutputBuffer[1024];
     const ConnectionHandler& m_Handler;
+    OnClose m_CloseHandler;
 };
 }
 

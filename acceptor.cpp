@@ -79,15 +79,29 @@ int Acceptor::handleRead()
 void Acceptor::poll()
 {
     int n = epoll_wait(m_epollfd, &*m_EventList.begin(), m_EventList.size(), -1);
-    for (int i = 0; i < n; ++i)
+    if (n > 0)
     {
-        Context* context = (Context*)m_EventList[i].data.ptr;
-        context->setActiveEvents(m_EventList[i].events);
-        context->handleEvent();
+        for (int i = 0; i < n; ++i)
+        {
+            Context* context = (Context*)m_EventList[i].data.ptr;
+            context->setActiveEvents(m_EventList[i].events);
+            context->handleEvent();
+        }
+        if (n == m_EventList.size())
+        {
+            m_EventList.resize(m_EventList.size()*2);
+        }
     }
-    if (n == m_EventList.size())
+    else if (n == 0)
     {
-        m_EventList.resize(m_EventList.size()*2);
+        // TODO: trace
+    }
+    else
+    {
+        if (errno != EINTR)
+        {
+            assert(false && "epoll wait failed");
+        }
     }
 }
 
@@ -134,6 +148,7 @@ void Acceptor::_newConnection(int sockfd)
 {
      Connection* conn = new Connection(sockfd, this, m_Handler);
      m_Connections[sockfd] = conn;
+     conn->setCloseHandler([=](Connection* conn){this->_removeConnection(conn);});
      conn->connectEstablished();
 }
 
@@ -143,6 +158,8 @@ void Acceptor::_removeConnection(Connection* conn)
     {
         m_Connections.erase(conn->getSockfd());
         conn->connectDestroyed();
+        delete conn;
+        conn = nullptr;
     }
 }
 

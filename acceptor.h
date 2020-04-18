@@ -20,11 +20,6 @@ public:
         return m_Listening;
     }
 
-    int getAcceptorFd()
-    {
-        return m_acceptfd;
-    }
-
     // accept
     void listen();
     int handleRead();
