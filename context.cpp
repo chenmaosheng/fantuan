@@ -43,4 +43,16 @@ void Context::disableWriting()
     m_handler.m_UpdateContextHandler(this);
 }
 
+void Context::enableReading()
+{
+    m_Events |= EPOLLIN;
+    m_handler.m_UpdateContextHandler(this);
+}
+
+void Context::disableReading()
+{
+    m_Events &= ~EPOLLIN;
+    m_handler.m_UpdateContextHandler(this);
+}
+
 }

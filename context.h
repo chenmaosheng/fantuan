@@ -35,9 +35,15 @@ public:
 
     void enableWriting();
     void disableWriting();
+    void enableReading();
+    void disableReading();
     bool isWriting() const
     {
         return m_Events & EPOLLOUT;
+    }
+    bool isReading() const
+    {
+        return m_Events & EPOLLIN;
     }
 
 private:
