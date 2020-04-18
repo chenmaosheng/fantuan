@@ -14,7 +14,6 @@ Acceptor::Acceptor(uint16_t port) :
     m_acceptfd(network::createsocket()),
     m_idlefd(::open("/dev/null", O_RDONLY | O_CLOEXEC)),
     m_Listening(false),
-    m_epollfd(::epoll_create1(EPOLL_CLOEXEC)),
     m_EventList(m_InitEventListSize),
     m_AcceptContext(m_acceptfd)
 {
@@ -25,10 +24,21 @@ Acceptor::Acceptor(uint16_t port) :
     handler.m_UpdateContextHandler = [=](Context* context){this->updateContext(context);};
     handler.m_ReadHandler = [=](){this->handleRead();};
     m_AcceptContext.setHandler(handler);
+
+    m_epollfd = ::epoll_create1(EPOLL_CLOEXEC);
+    if (m_epollfd < 0)
+    {
+        assert(false && "create epoll failed");
+    }
 }
 
 Acceptor::~Acceptor()
 {
+    for (auto& item : m_Connections)
+    {
+        item.second->connectDestroyed();
+    }
+    removeContext(&m_AcceptContext);
     ::close(m_epollfd);
     ::close(m_idlefd);
 }
@@ -122,8 +132,18 @@ void Acceptor::_updateContext(int operation, Context* context)
 
 void Acceptor::_newConnection(int sockfd)
 {
-     Connection* conn = new Connection(sockfd, this);
+     Connection* conn = new Connection(sockfd, this, m_Handler);
+     m_Connections[sockfd] = conn;
      conn->connectEstablished();
+}
+
+void Acceptor::_removeConnection(Connection* conn)
+{
+    if (conn)
+    {
+        m_Connections.erase(conn->getSockfd());
+        conn->connectDestroyed();
+    }
 }
 
 }

@@ -8,18 +8,19 @@
 
 namespace fantuan
 {
-Connection::Connection(int sockfd, Acceptor* acceptor) :
+Connection::Connection(int sockfd, Acceptor* acceptor, const ConnectionHandler& handler) :
     m_sockfd(sockfd),
     m_Acceptor(acceptor),
-    m_Context(new Context(sockfd))
+    m_Context(new Context(sockfd)),
+    m_Handler(handler)
 {
     bzero(&m_InputBuffer, sizeof(m_InputBuffer));
     bzero(&m_OutputBuffer, sizeof(m_OutputBuffer));
-    ContextHandler handler;
-    handler.m_ReadHandler = [=](){this->handleRead();};
-    handler.m_WriteHandler = [=](){this->handleWrite();};
-    handler.m_UpdateContextHandler = [=](Context* context){this->m_Acceptor->updateContext(context);};
-    m_Context->setHandler(handler);
+    ContextHandler contextHandler;
+    contextHandler.m_ReadHandler = [=](){this->handleRead();};
+    contextHandler.m_WriteHandler = [=](){this->handleWrite();};
+    contextHandler.m_UpdateContextHandler = [=](Context* context){this->m_Acceptor->updateContext(context);};
+    m_Context->setHandler(contextHandler);
 }
 
 Connection::~Connection()
@@ -101,6 +102,11 @@ void Connection::send(const void* data, uint32_t len)
 void Connection::connectEstablished()
 {
     m_Context->enableReading();
+}
+
+void Connection::connectDestroyed()
+{
+    // TODO:
 }
 
 
