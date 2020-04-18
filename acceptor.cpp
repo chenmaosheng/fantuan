@@ -80,6 +80,10 @@ void Acceptor::poll()
             context->handleEvent();
         }
     }
+    if (n == m_eventList.size())
+    {
+        m_eventList.resize(m_eventList.size()*2);
+    }
 }
 
 void Acceptor::updateContext(Context* context)
@@ -96,7 +100,7 @@ void Acceptor::_updateContext(int operation, Context* context)
     int fd = context->getSockFd();
     if (::epoll_ctl(m_epollfd, operation, fd, &event) < 0)
     {
-        // TODO: fatal error
+        assert(false && "epoll_ctl error");
     }
 }
 
