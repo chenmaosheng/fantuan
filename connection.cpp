@@ -22,6 +22,7 @@ Connection::Connection(int sockfd, Acceptor* acceptor, const ConnectionHandler& 
     contextHandler.m_WriteHandler = [=](){this->handleWrite();};
     contextHandler.m_UpdateContextHandler = [=](Context* context){this->m_Acceptor->updateContext(context);};
     m_Context->setHandler(contextHandler);
+    network::setKeepAlive(m_sockfd, true);
 }
 
 Connection::~Connection()
