@@ -32,24 +32,33 @@ Connection::~Connection()
 
 void Connection::handleRead()
 {
-    ssize_t count;
-    count = network::read(m_sockfd, m_InputBuffer, sizeof(m_InputBuffer));
-    if (count == -1)
+    ssize_t count, n = 0;
+    do
     {
-        if (errno != EAGAIN)
+        count = network::read(m_sockfd, m_InputBuffer+n, sizeof(m_InputBuffer)-n);
+        if (count == -1)
         {
-            // TODO: fatal error
+            if (errno != EAGAIN && errno != EWOULDBLOCK)
+            {
+                assert(false && "read error");
+                handleError();
+                break;
+            }
+            continue;
         }
-    }
-    else if (count == 0)
+        if (count == 0)
+        {
+            printf("leave\n");
+            handleClose();
+            break;
+        }
+        n+=count;
+    } while (errno == EINTR);
+    
+    if (n > 0)
     {
-        printf("leave\n");
-        handleClose();
-    }
-    else 
-    {
-        printf("read: %ld\n", count);
-        send(m_InputBuffer, strlen(m_InputBuffer));
+        printf("read: %ld\n", n);
+        send(m_InputBuffer, n);
     }
 }
 
@@ -66,7 +75,7 @@ void Connection::handleWrite()
         }
         else
         {
-            // TODO: fatal error
+            assert(false && "write error");
         }
     }
 }
