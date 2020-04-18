@@ -12,7 +12,7 @@ Acceptor::Acceptor(uint16_t port) :
     m_acceptfd(network::createsocket()),
     m_Listening(false),
     m_epollfd(::epoll_create1(EPOLL_CLOEXEC)),
-    m_EventList(16),
+    m_EventList(m_InitEventListSize),
     m_AcceptContext(m_acceptfd)
 {
     network::setTcpNoDelay(m_acceptfd, true);
@@ -43,7 +43,7 @@ int Acceptor::handleRead()
     if (connfd >= 0)
     {
         printf("accept\n");
-        // TODO: 
+        _newConnection(connfd);
     }
     else
     {
@@ -60,9 +60,7 @@ void Acceptor::poll()
         Context* context = (Context*)m_EventList[i].data.ptr;
         if (m_acceptfd == context->getSockFd())
         {
-            int fd = handleRead();
-            Connection* conn = new Connection(fd, this);
-            _updateContext(EPOLL_CTL_ADD, conn->getContext());
+            handleRead();
         }
         else
         {
@@ -87,6 +85,12 @@ void Acceptor::_updateContext(int operation, Context* context)
     {
         // TODO: fatal error
     }
+}
+
+void Acceptor::_newConnection(int sockfd)
+{
+     Connection* conn = new Connection(sockfd, this);
+     _updateContext(EPOLL_CTL_ADD, conn->getContext());
 }
 
 }
