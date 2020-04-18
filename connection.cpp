@@ -10,12 +10,17 @@ namespace fantuan
 {
 Connection::Connection(int sockfd, Acceptor* acceptor) :
     m_sockfd(sockfd),
-    m_Acceptor(acceptor)
+    m_Acceptor(acceptor),
+    m_Context(new Context(sockfd))
 {
-    m_Context = new Context(sockfd, this);
     m_Context->setEvents(EPOLLIN);
     bzero(&m_InputBuffer, sizeof(m_InputBuffer));
     bzero(&m_OutputBuffer, sizeof(m_OutputBuffer));
+    ContextHandler handler;
+    handler.m_ReadHandler = [=](){this->handleRead();};
+    handler.m_WriteHandler = [=](){this->handleWrite();};
+    m_Context->setHandler(handler);
+
 }
 
 Connection::~Connection()

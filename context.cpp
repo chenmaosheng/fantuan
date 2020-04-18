@@ -4,9 +4,8 @@
 
 namespace fantuan
 {
-Context::Context(int sockfd, Connection* conn) :
-    m_sockfd(sockfd),
-    m_Connection(conn)
+Context::Context(int sockfd) :
+    m_sockfd(sockfd)
 {
 
 }
@@ -20,11 +19,11 @@ void Context::handleEvent()
 {
     if (m_Events & (EPOLLIN || EPOLLERR || EPOLLRDHUP || EPOLLPRI))
     {
-        m_Connection->handleRead();
+        m_handler.m_ReadHandler();
     }
     else if (m_Events & EPOLLOUT)
     {
-        m_Connection->handleWrite();
+        m_handler.m_WriteHandler();
     }
     else
     {
@@ -35,15 +34,13 @@ void Context::handleEvent()
 void Context::enableWriting()
 {
     m_Events |= EPOLLOUT;
-    Acceptor* acceptor = m_Connection->getAcceptor();
-    acceptor->updateContext(this);
+    m_handler.m_UpdateContextHandler(this);
 }
 
 void Context::disableWriting()
 {
     m_Events &= ~EPOLLOUT;
-    Acceptor* acceptor = m_Connection->getAcceptor();
-    acceptor->updateContext(this);
+    m_handler.m_UpdateContextHandler(this);
 }
 
 }

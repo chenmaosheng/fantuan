@@ -2,6 +2,7 @@
 #define _H_CONTEXT
 
 #include <sys/epoll.h>
+#include "handler.h"
 
 namespace fantuan
 {
@@ -9,12 +10,12 @@ class Connection;
 class Context
 {
 public:
-    Context(int sockfd, Connection* conn = nullptr);
+    Context(int sockfd);
     ~Context();
 
-    Connection* getConnection() const
+    void setHandler(const ContextHandler& handler)
     {
-        return m_Connection;
+        m_handler = handler;
     }
     void handleEvent();
     int getSockFd() const
@@ -42,7 +43,7 @@ public:
 private:
     const int m_sockfd;
     int m_Events;
-    Connection* m_Connection;
+    ContextHandler m_handler;
 };
 }
 

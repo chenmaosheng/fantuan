@@ -11,7 +11,7 @@ namespace fantuan
 class Acceptor
 {
 public:
-    Acceptor(uint16_t port, bool reuseport=false);
+    Acceptor(uint16_t port);
     ~Acceptor();
 
     bool isListening() const

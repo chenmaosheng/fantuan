@@ -8,7 +8,7 @@
 
 namespace fantuan
 {
-Acceptor::Acceptor(uint16_t port, bool reuseport) : 
+Acceptor::Acceptor(uint16_t port) : 
     m_acceptfd(network::createsocket()),
     m_Listening(false),
     m_epollfd(::epoll_create1(EPOLL_CLOEXEC)),
@@ -16,8 +16,12 @@ Acceptor::Acceptor(uint16_t port, bool reuseport) :
     m_AcceptContext(m_acceptfd)
 {
     network::setTcpNoDelay(m_acceptfd, true);
-    network::setReusePort(m_acceptfd, reuseport);
+    network::setReusePort(m_acceptfd, true);
     network::bind(m_acceptfd, port);
+    ContextHandler handler;
+    handler.m_UpdateContextHandler = [=](Context* context){this->updateContext(context);};
+    handler.m_ReadHandler = [=](){this->handleRead();};
+    m_AcceptContext.setHandler(handler);
 }
 
 Acceptor::~Acceptor()
