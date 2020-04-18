@@ -9,9 +9,14 @@ namespace fantuan
 class Connection
 {
 public:
-    Connection(int sockfd, Acceptor* acceptor);
+    Connection(int sockfd, Acceptor* acceptor, const ConnectionHandler& handler);
     ~Connection();
 
+    int getSockfd() const
+    {
+        return m_sockfd;
+    }
+    
     Context* getContext() const
     {
         return m_Context;
@@ -27,6 +32,7 @@ public:
 
     void send(const void* data, uint32_t len);
     void connectEstablished();
+    void connectDestroyed();
 
 private:
     int m_sockfd;
@@ -34,6 +40,7 @@ private:
     Context* m_Context;
     char m_InputBuffer[65500];
     char m_OutputBuffer[1024];
+    const ConnectionHandler& m_Handler;
 };
 }
 
