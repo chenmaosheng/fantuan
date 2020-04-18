@@ -13,14 +13,13 @@ Connection::Connection(int sockfd, Acceptor* acceptor) :
     m_Acceptor(acceptor),
     m_Context(new Context(sockfd))
 {
-    m_Context->setEvents(EPOLLIN);
     bzero(&m_InputBuffer, sizeof(m_InputBuffer));
     bzero(&m_OutputBuffer, sizeof(m_OutputBuffer));
     ContextHandler handler;
     handler.m_ReadHandler = [=](){this->handleRead();};
     handler.m_WriteHandler = [=](){this->handleWrite();};
+    handler.m_UpdateContextHandler = [=](Context* context){this->m_Acceptor->updateContext(context);};
     m_Context->setHandler(handler);
-
 }
 
 Connection::~Connection()
@@ -97,6 +96,11 @@ void Connection::send(const void* data, uint32_t len)
             }
         }
     }
+}
+
+void Connection::connectEstablished()
+{
+    m_Context->enableReading();
 }
 
 

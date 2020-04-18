@@ -10,6 +10,7 @@ class Connection;
 class Context
 {
 public:
+    enum State { NEW, ADDED, DELETED};
     Context(int sockfd);
     ~Context();
 
@@ -28,9 +29,9 @@ public:
         return m_Events;
     }
 
-    void setEvents(int events)
+    void setActiveEvents(int events)
     {
-        m_Events = events;
+        m_activeEvents = events;
     }
 
     void enableWriting();
@@ -45,11 +46,21 @@ public:
     {
         return m_Events & EPOLLIN;
     }
+    void setState(State state)
+    {
+        m_state = state;
+    }
+    State getState() const
+    {
+        return m_state;
+    }
 
 private:
     const int m_sockfd;
     int m_Events;
+    int m_activeEvents;
     ContextHandler m_handler;
+    State m_state;
 };
 }
 

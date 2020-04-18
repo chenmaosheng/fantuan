@@ -26,6 +26,7 @@ public:
     void handleWrite();
 
     void send(const void* data, uint32_t len);
+    void connectEstablished();
 
 private:
     int m_sockfd;

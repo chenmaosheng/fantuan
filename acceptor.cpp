@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <errno.h>
 #include <strings.h>
+#include <assert.h>
+#include <fcntl.h>
 
 namespace fantuan
 {
@@ -35,8 +37,7 @@ void Acceptor::listen()
 {
     m_Listening = true;
     network::listen(m_acceptfd);
-    m_AcceptContext.setEvents(EPOLLIN);
-    _updateContext(EPOLL_CTL_ADD, &m_AcceptContext);
+    m_AcceptContext.enableReading();
 }
 
 int Acceptor::handleRead()
@@ -71,24 +72,39 @@ void Acceptor::poll()
     for (int i = 0; i < n; ++i)
     {
         Context* context = (Context*)m_EventList[i].data.ptr;
-        if (m_acceptfd == context->getSockFd())
-        {
-            handleRead();
-        }
-        else
-        {
-            context->handleEvent();
-        }
+        context->setActiveEvents(m_EventList[i].events);
+        context->handleEvent();
     }
-    if (n == m_eventList.size())
+    if (n == m_EventList.size())
     {
-        m_eventList.resize(m_eventList.size()*2);
+        m_EventList.resize(m_EventList.size()*2);
     }
 }
 
 void Acceptor::updateContext(Context* context)
 {
-    _updateContext(EPOLL_CTL_MOD, context);
+    int state = context->getState();
+    if (state == Context::NEW || state == Context::DELETED)
+    {
+        // new context
+        context->setState(Context::ADDED);
+        _updateContext(EPOLL_CTL_ADD, context);
+    }
+    else
+    {
+        _updateContext(EPOLL_CTL_MOD, context);
+    }
+}
+
+void Acceptor::removeContext(Context* context)
+{
+    int state = context->getState();
+    assert(state == Context::ADDED);
+    if (state == Context::ADDED)
+    {
+        _updateContext(EPOLL_CTL_DEL, context);
+    }
+    context->setState(Context::NEW);
 }
 
 void Acceptor::_updateContext(int operation, Context* context)
@@ -107,7 +123,7 @@ void Acceptor::_updateContext(int operation, Context* context)
 void Acceptor::_newConnection(int sockfd)
 {
      Connection* conn = new Connection(sockfd, this);
-     _updateContext(EPOLL_CTL_ADD, conn->getContext());
+     conn->connectEstablished();
 }
 
 }

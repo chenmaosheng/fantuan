@@ -5,7 +5,11 @@
 namespace fantuan
 {
 Context::Context(int sockfd) :
-    m_sockfd(sockfd)
+    m_sockfd(sockfd),
+    m_Events(0),
+    m_activeEvents(0),
+    m_state(NEW)
+
 {
 
 }
@@ -17,11 +21,11 @@ Context::~Context()
 
 void Context::handleEvent()
 {
-    if (m_Events & (EPOLLIN || EPOLLERR || EPOLLRDHUP || EPOLLPRI))
+    if (m_activeEvents & (EPOLLIN || EPOLLERR || EPOLLRDHUP || EPOLLPRI))
     {
         m_handler.m_ReadHandler();
     }
-    else if (m_Events & EPOLLOUT)
+    else if (m_activeEvents & EPOLLOUT)
     {
         m_handler.m_WriteHandler();
     }
