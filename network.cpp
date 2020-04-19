@@ -47,10 +47,10 @@ void listen(int sockfd)
 
 int accept(int sockfd)
 {
-    socklen_t in_len;
-    sockaddr addr;
-    bzero(&addr, sizeof(sockaddr));
-    int connfd = ::accept4(sockfd, &addr, &in_len, SOCK_NONBLOCK | SOCK_CLOEXEC);
+    sockaddr_in addr;
+    socklen_t in_len = sizeof(sockaddr_in);
+    bzero(&addr, sizeof(sockaddr_in));
+    int connfd = ::accept4(sockfd, (sockaddr*)&addr, &in_len, SOCK_NONBLOCK | SOCK_CLOEXEC);
     if (connfd < 0)
     {
         int err = errno;
