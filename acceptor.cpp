@@ -37,6 +37,9 @@ Acceptor::Acceptor(uint16_t port) :
     {
         assert(false && "create epoll failed");
     }
+    m_Handler.m_OnConnection = [=](Connection*){};
+    m_Handler.m_OnDisconnected = [=](Connection*){};
+    m_Handler.m_OnData = [=](Connection*, uint16_t, char*){};
 }
 
 Acceptor::~Acceptor()

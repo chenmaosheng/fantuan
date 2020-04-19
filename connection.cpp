@@ -66,6 +66,7 @@ void Connection::handleRead()
     if (n > 0)
     {
         printf("read: %ld\n", n);
+        m_Handler.m_OnData(this, (uint16_t)n, m_InputBuffer);
         // TEST SEND FLOW
         if (count > 0 || errno == EAGAIN)
             send(m_InputBuffer, n);
@@ -112,14 +113,15 @@ void Connection::handleClose()
     m_State = DISCONNECTED;
     m_Context->disableWriting();
     m_Context->disableReading();
+    m_Handler.m_OnDisconnected(this);
     m_CloseHandler(this);
 }
 
 void Connection::handleError()
 {
     int err = network::getsockerror(m_sockfd);
+    printf("network error, err=%d\n", err);
     //assert(false && "network error");
-    handleClose();
 }
 
 void Connection::shutdown()
@@ -188,8 +190,7 @@ void Connection::connectEstablished()
     assert(m_State == CONNECTING);
     m_State = CONNECTED;
     m_Context->enableReading();
-
-    // TODO: connection handler
+    m_Handler.m_OnConnection(this);
 }
 
 void Connection::connectDestroyed()
