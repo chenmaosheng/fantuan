@@ -57,7 +57,7 @@ struct Buffer
         }
     }
 
-    const static size_t maxSize = 16;
+    const static size_t maxSize = 262144; // 256KB
     char buffer[maxSize];
     size_t sentIndex;
     size_t pendingIndex;
