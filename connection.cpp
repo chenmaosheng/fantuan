@@ -37,10 +37,8 @@ void Connection::handleRead()
         count = network::read(m_sockfd, m_InputBuffer+n, sizeof(m_InputBuffer)-n);
         if (count < 0)
         {
-            if (errno == EINTR)
+            if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
                 break;
-            if (errno == EAGAIN || errno == EWOULDBLOCK) 
-                continue;
             else
             {
                 // EPIPE or ECONNREST or others
