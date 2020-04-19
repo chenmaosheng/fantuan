@@ -177,6 +177,8 @@ void Connection::send(const void* data, uint32_t len)
     }
     else if (remaining > 0)
     {
+        LOG_DBG("sock=%d, avail=%d, remaining=%d, sentIndex=%d\n", m_sockfd, 
+            m_OutputBuffer.availBytes(), remaining, m_OutputBuffer.getSentIndex());
         m_OutputBuffer.append((char*)data+nwrote, remaining);
         if (!m_Context->isWriting())
         {

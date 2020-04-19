@@ -36,8 +36,12 @@ void Log::push(const char* format, ...)
 	va_start(Args, format);
 	int iLength = vsnprintf(buffer, BUFFER_MAX_SIZE, format, Args) + 1;
 	va_end(Args);
-    snprintf(realBuffer, BUFFER_MAX_SIZE, "%s", buffer);
-	std::unique_lock<std::mutex> lock(m_Mutex);
+    time_t now = time(NULL);
+	tm* currentTime = localtime(&now);
+	snprintf(realBuffer, BUFFER_MAX_SIZE, "[%02d.%02d.%02d %02d:%02d:%02d]%s", 
+		currentTime->tm_year+1900, currentTime->tm_mon+1, currentTime->tm_mday, currentTime->tm_hour, currentTime->tm_min, currentTime->tm_sec,
+		buffer);
+    std::unique_lock<std::mutex> lock(m_Mutex);
 	m_OutputEvent.notify_one();
 	return m_Buffer.append(realBuffer, (int)strlen(realBuffer));
 }

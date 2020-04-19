@@ -29,6 +29,11 @@ struct Buffer
         return buffer + sentIndex;
     }
 
+    size_t getSentIndex() const
+    {
+        return sentIndex;
+    }
+
     void append(const char* data, size_t len)
     {
         if (len > maxSize - pendingBytes())
