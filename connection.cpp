@@ -44,6 +44,7 @@ void Connection::handleRead()
                 continue;
             else
             {
+                // EPIPE or ECONNREST or others
                 assert(false && "read error");
                 handleError();
                 break;
@@ -99,31 +100,42 @@ void Connection::handleError()
 
 void Connection::send(const void* data, uint32_t len)
 {
-    ssize_t wrote = 0;
+    ssize_t nwrote = 0;
     size_t remaining = len;
     bool fatalError = false;
     if (!m_Context->isWriting())
     {
-        wrote = network::write(m_sockfd, data, len);
-        if (wrote >= 0)
+        nwrote = network::write(m_sockfd, data, len);
+        if (nwrote >= 0)
         {
-            printf("write: %ld\n", wrote);
-            remaining = len - wrote;
+            printf("write: %ld\n", nwrote);
+            remaining = len - nwrote;
+            if (remaining == 0)
+            {
+                // TODO: write complete callback
+            }
         }
         else
         {
-            if (errno == EAGAIN || errno == EWOULDBLOCK)
+            nwrote = 0;
+            if (errno != EAGAIN && errno != EWOULDBLOCK)
             {
-                if (!m_Context->isWriting())
+                assert(false && "send error");
+                if (errno == EPIPE || errno == ECONNRESET)
                 {
-                    printf("enableWriting\n");
-                    m_Context->enableWriting();
+                    fatalError = true;
                 }
             }
-            else
-            {
-                // TODO: fatal error;
-            }
+        }
+    }
+
+    if (!fatalError && remaining > 0)
+    {
+        strncpy(m_OutputBuffer, (char*)data+nwrote, remaining);
+        if (!m_Context->isWriting())
+        {
+            printf("enableWriting\n");
+            m_Context->enableWriting();
         }
     }
 }
