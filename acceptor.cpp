@@ -167,6 +167,9 @@ void Acceptor::_removeConnection(Connection* conn)
         conn->connectDestroyed();
         // TODO: can't delete connection here, because this function is called by connection itself. 
         // TODO: how to gracefully delete connection
+        delete conn;
+        conn = nullptr;
+        // this is called when connection's handleclose. so after handleclose, you can't call any connection APIs.
     }
 }
 

@@ -13,7 +13,8 @@ Connection::Connection(int sockfd, Acceptor* acceptor, const ConnectionHandler& 
     m_sockfd(sockfd),
     m_Acceptor(acceptor),
     m_Context(new Context(sockfd)),
-    m_Handler(handler)
+    m_Handler(handler),
+    m_State(CONNECTING)
 {
     bzero(&m_InputBuffer, sizeof(m_InputBuffer));
     ContextHandler contextHandler;
@@ -26,7 +27,7 @@ Connection::Connection(int sockfd, Acceptor* acceptor, const ConnectionHandler& 
 
 Connection::~Connection()
 {
-
+    assert(m_State == DISCONNECTED);
 }
 
 void Connection::handleRead()
@@ -48,14 +49,14 @@ void Connection::handleRead()
                 // EPIPE or ECONNREST or others
                 assert(false && "read error");
                 handleError();
-                break;
+                return;
             }
         }
         if (count == 0)
         {
             printf("leave\n");
             handleClose();
-            break;
+            return;
         }
         n+=count;
     } while (n<sizeof(m_InputBuffer));
@@ -64,8 +65,8 @@ void Connection::handleRead()
     {
         printf("read: %ld\n", n);
         // TEST SEND FLOW
-        if (count != 0)
-            send(m_InputBuffer, strlen(m_InputBuffer));
+        if (count > 0 || errno == EAGAIN)
+            send(m_InputBuffer, n);
     }
 }
 
@@ -84,6 +85,10 @@ void Connection::handleWrite()
                 printf("disablewrite\n");
                 m_Context->disableWriting();
                 // TODO: write complete callback
+                if (m_State == DISCONNECTING)
+                {
+                    shutdown();
+                }
             }
         }
         else
@@ -101,6 +106,8 @@ void Connection::handleWrite()
 
 void Connection::handleClose()
 {
+    assert(m_State == CONNECTED || m_State == DISCONNECTING);
+    m_State = DISCONNECTED;
     m_Context->disableWriting();
     m_Context->disableReading();
     m_CloseHandler(this);
@@ -113,8 +120,21 @@ void Connection::handleError()
     handleClose();
 }
 
+void Connection::shutdown()
+{
+    if (m_State == CONNECTED)
+    {
+        m_State = DISCONNECTING;
+        if (!m_Context->isWriting())
+        {
+            network::shutdownWR(m_sockfd);
+        }
+    }
+}
+
 void Connection::send(const void* data, uint32_t len)
 {
+    if (m_State != CONNECTED) return;
     ssize_t nwrote = 0, wd = 0;
     size_t remaining = len;
     bool fatalError = false;
@@ -133,6 +153,8 @@ void Connection::send(const void* data, uint32_t len)
         }
         if (wd <= 0)
         {
+            // TODO: what about EINTR
+            // EAGAIN means send buffer is empty
             if (errno != EAGAIN && errno != EWOULDBLOCK)
             {
                 assert(false && "send error");
@@ -160,14 +182,22 @@ void Connection::send(const void* data, uint32_t len)
 
 void Connection::connectEstablished()
 {
+    assert(m_State == CONNECTING);
+    m_State = CONNECTED;
     m_Context->enableReading();
+
+    // TODO: connection handler
 }
 
 void Connection::connectDestroyed()
 {
-    // TODO:
+    if (m_State == CONNECTED)
+    {
+        m_State = DISCONNECTED;
+        m_Acceptor->removeContext(m_Context);
+        // TODO: disconnection handler
+    }
     printf("close socket\n");
-    m_Acceptor->removeContext(m_Context);
     network::close(m_sockfd);
 }
 
