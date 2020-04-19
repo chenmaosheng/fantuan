@@ -36,15 +36,18 @@ void Connection::handleRead()
     do
     {
         count = network::read(m_sockfd, m_InputBuffer+n, sizeof(m_InputBuffer)-n);
-        if (count == -1)
+        if (count < 0)
         {
-            if (errno != EAGAIN && errno != EWOULDBLOCK)
+            if (errno == EINTR)
+                break;
+            if (errno == EAGAIN || errno == EWOULDBLOCK) 
+                continue;
+            else
             {
                 assert(false && "read error");
                 handleError();
                 break;
             }
-            continue;
         }
         if (count == 0)
         {
@@ -53,12 +56,12 @@ void Connection::handleRead()
             break;
         }
         n+=count;
-    } while (errno == EINTR);
+    } while (n<sizeof(m_InputBuffer));
     
     if (n > 0)
     {
-        printf("read: %ld\n", n);
-        send(m_InputBuffer, n);
+        printf("read: %ld\n", count);
+        send(m_InputBuffer, strlen(m_InputBuffer));
     }
 }
 
@@ -91,6 +94,7 @@ void Connection::handleError()
 {
     int err = network::getsockerror(m_sockfd);
     assert(false && "network error");
+    handleClose();
 }
 
 void Connection::send(const void* data, uint32_t len)
