@@ -37,7 +37,11 @@ void Connection::handleRead()
         count = network::read(m_sockfd, m_InputBuffer+n, sizeof(m_InputBuffer)-n);
         if (count < 0)
         {
-            if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
+            // another signal captured caused this error, need to try again
+            if (errno == EINTR)
+                continue;
+            // non-block IO means recv buffer is empty
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
                 break;
             else
             {
