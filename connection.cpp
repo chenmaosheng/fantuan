@@ -16,7 +16,6 @@ Connection::Connection(int sockfd, Acceptor* acceptor, const ConnectionHandler& 
     m_Handler(handler)
 {
     bzero(&m_InputBuffer, sizeof(m_InputBuffer));
-    bzero(&m_OutputBuffer, sizeof(m_OutputBuffer));
     ContextHandler contextHandler;
     contextHandler.m_ReadHandler = [=](){this->handleRead();};
     contextHandler.m_WriteHandler = [=](){this->handleWrite();};
@@ -61,27 +60,41 @@ void Connection::handleRead()
     
     if (n > 0)
     {
-        printf("read: %ld\n", count);
-        send(m_InputBuffer, strlen(m_InputBuffer));
+        printf("read: %ld\n", n);
+        // TEST SEND FLOW
+        if (count != 0)
+            send(m_InputBuffer, strlen(m_InputBuffer));
     }
 }
 
 void Connection::handleWrite()
 {
+    printf("ready to handle write\n");
     if (m_Context->isWriting())
     {
-        printf("disableWriting\n");
-        ssize_t count = network::write(m_sockfd, m_OutputBuffer, 1024);
+        ssize_t count = network::write(m_sockfd, m_OutputBuffer.peek(), m_OutputBuffer.pendingBytes());
         if (count > 0)
         {
+            m_OutputBuffer.retrieve(count);
             printf("handleWrite: %ld\n", count);
-            m_Context->disableWriting();
+            if (m_OutputBuffer.pendingBytes() == 0)
+            {
+                printf("disablewrite\n");
+                m_Context->disableWriting();
+                // TODO: write complete callback
+            }
         }
         else
         {
+            // TODO: no error handling?
             assert(false && "write error");
         }
     }
+    else
+    {
+        // TODO: trace no writing
+    }
+    
 }
 
 void Connection::handleClose()
@@ -103,7 +116,7 @@ void Connection::send(const void* data, uint32_t len)
     ssize_t nwrote = 0, wd = 0;
     size_t remaining = len;
     bool fatalError = false;
-    if (!m_Context->isWriting() && m_OutputBuffer[0] == '\0')
+    if (!m_Context->isWriting() && m_OutputBuffer.pendingBytes() == 0)
     {
         while ((wd = network::write(m_sockfd, (char*)data+nwrote, remaining)) > 0)
         {
@@ -134,7 +147,7 @@ void Connection::send(const void* data, uint32_t len)
     }
     else if (remaining > 0)
     {
-        memcpy(m_OutputBuffer, (char*)data+nwrote, remaining);
+        m_OutputBuffer.append((char*)data+nwrote, remaining);
         if (!m_Context->isWriting())
         {
             printf("enableWriting\n");
@@ -151,6 +164,7 @@ void Connection::connectEstablished()
 void Connection::connectDestroyed()
 {
     // TODO:
+    printf("close socket\n");
     m_Acceptor->removeContext(m_Context);
     network::close(m_sockfd);
 }

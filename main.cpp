@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <errno.h>
 #include "acceptor.h"
+#include "buffer.h"
 
 using namespace fantuan;
 

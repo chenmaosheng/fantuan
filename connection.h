@@ -3,6 +3,7 @@
 
 #include "acceptor.h"
 #include "context.h"
+#include "buffer.h"
 
 namespace fantuan
 {
@@ -44,8 +45,8 @@ private:
     int m_sockfd;
     Acceptor* m_Acceptor;
     Context* m_Context;
-    char m_InputBuffer[65500];
-    char m_OutputBuffer[1024];
+    char m_InputBuffer[4096];
+    Buffer m_OutputBuffer;
     const ConnectionHandler& m_Handler;
     OnClose m_CloseHandler;
 };

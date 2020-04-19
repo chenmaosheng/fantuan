@@ -165,8 +165,8 @@ void Acceptor::_removeConnection(Connection* conn)
     {
         m_Connections.erase(conn->getSockfd());
         conn->connectDestroyed();
-        delete conn;
-        conn = nullptr;
+        // TODO: can't delete connection here, because this function is called by connection itself. 
+        // TODO: how to gracefully delete connection
     }
 }
 
