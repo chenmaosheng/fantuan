@@ -169,6 +169,7 @@ void Acceptor::_removeConnection(Connection* conn)
         // TODO: how to gracefully delete connection
         delete conn;
         conn = nullptr;
+        printf("conn %d\n", (int)m_Connections.size());
         // this is called when connection's handleclose. so after handleclose, you can't call any connection APIs.
     }
 }

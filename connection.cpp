@@ -116,7 +116,7 @@ void Connection::handleClose()
 void Connection::handleError()
 {
     int err = network::getsockerror(m_sockfd);
-    assert(false && "network error");
+    //assert(false && "network error");
     handleClose();
 }
 
@@ -157,7 +157,8 @@ void Connection::send(const void* data, uint32_t len)
             // EAGAIN means send buffer is empty
             if (errno != EAGAIN && errno != EWOULDBLOCK)
             {
-                assert(false && "send error");
+                printf("send error: %d\n", errno);
+                //assert(false && "send error");
                 if (errno == EPIPE || errno == ECONNRESET)
                 {
                     fatalError = true;
