@@ -100,24 +100,24 @@ void Connection::handleError()
 
 void Connection::send(const void* data, uint32_t len)
 {
-    ssize_t nwrote = 0;
+    ssize_t nwrote = 0, wd = 0;
     size_t remaining = len;
     bool fatalError = false;
-    if (!m_Context->isWriting())
+    if (!m_Context->isWriting() && m_OutputBuffer[0] == '\0')
     {
-        nwrote = network::write(m_sockfd, data, len);
-        if (nwrote >= 0)
+        while ((wd = network::write(m_sockfd, (char*)data+nwrote, remaining)) > 0)
         {
-            printf("write: %ld\n", nwrote);
-            remaining = len - nwrote;
-            if (remaining == 0)
-            {
-                // TODO: write complete callback
-            }
+            nwrote += wd;
+            remaining -= wd;
         }
-        else
+        if (nwrote > 0) printf("write: %ld\n", nwrote);
+        if (remaining == 0)
         {
-            nwrote = 0;
+            // TODO: write complete callback
+            return;
+        }
+        if (wd <= 0)
+        {
             if (errno != EAGAIN && errno != EWOULDBLOCK)
             {
                 assert(false && "send error");
@@ -128,10 +128,13 @@ void Connection::send(const void* data, uint32_t len)
             }
         }
     }
-
-    if (!fatalError && remaining > 0)
+    if (fatalError)
     {
-        strncpy(m_OutputBuffer, (char*)data+nwrote, remaining);
+        handleError();
+    }
+    else if (remaining > 0)
+    {
+        memcpy(m_OutputBuffer, (char*)data+nwrote, remaining);
         if (!m_Context->isWriting())
         {
             printf("enableWriting\n");
