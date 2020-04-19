@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <signal.h>
+#include "log.h"
 
 namespace fantuan
 {
@@ -65,7 +66,7 @@ int Acceptor::handleRead()
     int connfd = network::accept(m_acceptfd);
     if (connfd >= 0)
     {
-        printf("accept\n");
+        LOG_DBG("accept\n");
         _newConnection(connfd);
     }
     else
@@ -172,7 +173,7 @@ void Acceptor::_removeConnection(Connection* conn)
         // TODO: how to gracefully delete connection
         delete conn;
         conn = nullptr;
-        printf("conn %d\n", (int)m_Connections.size());
+        LOG_DBG("conn %d\n", (int)m_Connections.size());
         // this is called when connection's handleclose. so after handleclose, you can't call any connection APIs.
     }
 }

@@ -6,6 +6,7 @@
 #include "network.h"
 #include <string.h>
 #include <assert.h>
+#include "log.h"
 
 namespace fantuan
 {
@@ -56,7 +57,7 @@ void Connection::handleRead()
         }
         if (count == 0)
         {
-            printf("leave\n");
+            LOG_DBG("leave, sock=%d\n", m_sockfd);
             handleClose();
             return;
         }
@@ -65,7 +66,7 @@ void Connection::handleRead()
     
     if (n > 0)
     {
-        printf("read: %ld\n", n);
+        LOG_DBG("sock=%d, read: %ld\n", m_sockfd, n);
         m_Handler.m_OnData(this, (uint16_t)n, m_InputBuffer);
         // TEST SEND FLOW
         if (count > 0 || errno == EAGAIN)
@@ -75,17 +76,16 @@ void Connection::handleRead()
 
 void Connection::handleWrite()
 {
-    printf("ready to handle write\n");
     if (m_Context->isWriting())
     {
         ssize_t count = network::write(m_sockfd, m_OutputBuffer.peek(), m_OutputBuffer.pendingBytes());
         if (count > 0)
         {
             m_OutputBuffer.retrieve(count);
-            printf("handleWrite: %ld\n", count);
+            LOG_DBG("sock=%d, handleWrite: %ld\n", m_sockfd, count);
             if (m_OutputBuffer.pendingBytes() == 0)
             {
-                printf("disablewrite\n");
+                LOG_DBG("sock=%d, disablewrite\n", m_sockfd);
                 m_Context->disableWriting();
                 // TODO: write complete callback
                 if (m_State == DISCONNECTING)
@@ -120,7 +120,7 @@ void Connection::handleClose()
 void Connection::handleError()
 {
     int err = network::getsockerror(m_sockfd);
-    printf("network error, err=%d\n", err);
+    LOG_DBG("sock=%d, network error, err=%d\n", m_sockfd, err);
     //assert(false && "network error");
 }
 
@@ -139,29 +139,30 @@ void Connection::shutdown()
 void Connection::send(const void* data, uint32_t len)
 {
     if (m_State != CONNECTED) return;
-    ssize_t nwrote = 0, wd = 0;
+    ssize_t nwrote = 0;
     size_t remaining = len;
     bool fatalError = false;
     if (!m_Context->isWriting() && m_OutputBuffer.pendingBytes() == 0)
     {
-        while ((wd = network::write(m_sockfd, (char*)data+nwrote, remaining)) > 0)
+        nwrote = network::write(m_sockfd, data, len);
+        if (nwrote >= 0)
         {
-            nwrote += wd;
-            remaining -= wd;
+            LOG_DBG("sock=%d, write: %ld\n", m_sockfd, nwrote);
+            remaining = len - nwrote;
+            if (remaining == 0)
+            {
+                // TODO: write complete callback
+                return;
+            }
         }
-        if (nwrote > 0) printf("write: %ld\n", nwrote);
-        if (remaining == 0)
+        else
         {
-            // TODO: write complete callback
-            return;
-        }
-        if (wd <= 0)
-        {
+            nwrote = 0;
             // TODO: what about EINTR
             // EAGAIN means send buffer is empty
             if (errno != EAGAIN && errno != EWOULDBLOCK)
             {
-                printf("send error: %d\n", errno);
+                LOG_DBG("sock=%d, send error: %d\n", m_sockfd, errno);
                 //assert(false && "send error");
                 if (errno == EPIPE || errno == ECONNRESET)
                 {
@@ -179,7 +180,7 @@ void Connection::send(const void* data, uint32_t len)
         m_OutputBuffer.append((char*)data+nwrote, remaining);
         if (!m_Context->isWriting())
         {
-            printf("enableWriting\n");
+            LOG_DBG("sock=%d, enableWriting\n", m_sockfd);
             m_Context->enableWriting();
         }
     }
@@ -201,7 +202,7 @@ void Connection::connectDestroyed()
         m_Acceptor->removeContext(m_Context);
         // TODO: disconnection handler
     }
-    printf("close socket\n");
+    LOG_DBG("sock=%d, close socket\n", m_sockfd);
     network::close(m_sockfd);
 }
 
