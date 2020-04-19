@@ -20,6 +20,8 @@ Connection::Connection(int sockfd, Acceptor* acceptor, const ConnectionHandler& 
     ContextHandler contextHandler;
     contextHandler.m_ReadHandler = [=](){this->handleRead();};
     contextHandler.m_WriteHandler = [=](){this->handleWrite();};
+    contextHandler.m_ErrorHandler = [=](){this->handleError();};
+    contextHandler.m_CloseHandler = [=](){this->handleClose();};
     contextHandler.m_UpdateContextHandler = [=](Context* context){this->m_Acceptor->updateContext(context);};
     m_Context->setHandler(contextHandler);
     network::setKeepAlive(m_sockfd, true);
