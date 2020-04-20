@@ -6,7 +6,6 @@
 #include "network.h"
 #include <string.h>
 #include <assert.h>
-#include "log.h"
 
 namespace fantuan
 {
@@ -178,7 +177,7 @@ void Connection::send(const void* data, uint32_t len)
     else if (remaining > 0)
     {
         printf("sock=%d, avail=%d, remaining=%d, sentIndex=%d\n", m_sockfd, 
-            m_OutputBuffer.availBytes(), remaining, m_OutputBuffer.getSentIndex());
+            (int)m_OutputBuffer.availBytes(), (int)remaining, (int)m_OutputBuffer.getSentIndex());
         m_OutputBuffer.append((char*)data+nwrote, remaining);
         if (!m_Context->isWriting())
         {
@@ -202,7 +201,6 @@ void Connection::connectDestroyed()
     {
         m_State = DISCONNECTED;
         m_Acceptor->removeContext(m_Context);
-        // TODO: disconnection handler
     }
     printf("sock=%d, close socket\n", m_sockfd);
     network::close(m_sockfd);

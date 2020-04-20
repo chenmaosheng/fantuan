@@ -8,7 +8,6 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <signal.h>
-#include "log.h"
 
 namespace fantuan
 {
@@ -100,7 +99,7 @@ void Acceptor::poll()
         if (n == m_EventList.size())
         {
             m_EventList.resize(m_EventList.size()*2);
-            printf("new event list size: %d\n", (int)m_EventList.size());
+            printf("n=%d, new event list size: %d\n", n, (int)m_EventList.size());
         }
     }
     else if (n == 0)
