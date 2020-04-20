@@ -55,7 +55,7 @@ private:
     int m_sockfd;
     Acceptor* m_Acceptor;
     Context* m_Context;
-    char m_InputBuffer[4096*4];
+    char m_InputBuffer[4096];
     Buffer m_OutputBuffer;
     const ConnectionHandler& m_Handler;
     OnClose m_CloseHandler;
