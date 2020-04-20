@@ -48,9 +48,12 @@ Acceptor::~Acceptor()
     {
         item.second->connectDestroyed();
     }
+    // acceptor
+    m_AcceptContext.disableAll();
     removeContext(&m_AcceptContext);
-    ::close(m_epollfd);
     ::close(m_idlefd);
+    // epoll
+    ::close(m_epollfd);
 }
 
 void Acceptor::listen()

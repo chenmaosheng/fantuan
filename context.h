@@ -16,7 +16,7 @@ public:
 
     void setHandler(const ContextHandler& handler)
     {
-        m_handler = handler;
+        m_handler = std::move(handler);
     }
     void handleEvent();
     int getSockFd() const
@@ -38,6 +38,7 @@ public:
     void disableWriting();
     void enableReading();
     void disableReading();
+    void disableAll();
     bool isWriting() const
     {
         return m_Events & EPOLLOUT;

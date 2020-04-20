@@ -49,7 +49,6 @@ private:
     const static int m_InitEventListSize = 16;
     int m_epollfd;
     std::vector<epoll_event> m_EventList;
-    epoll_event	m_AcceptEvent;
     // server
     ConnectionHandler m_Handler;
     std::unordered_map<int, Connection*> m_Connections;

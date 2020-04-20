@@ -62,4 +62,10 @@ void Context::disableReading()
     m_handler.m_UpdateContextHandler(this);
 }
 
+void Context::disableAll()
+{
+    m_Events = 0;
+    m_handler.m_UpdateContextHandler(this);
+}
+
 }

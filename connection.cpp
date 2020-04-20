@@ -110,8 +110,7 @@ void Connection::handleClose()
 {
     assert(m_State == CONNECTED || m_State == DISCONNECTING);
     m_State = DISCONNECTED;
-    m_Context->disableWriting();
-    m_Context->disableReading();
+    m_Context->disableAll();
     m_Handler.m_OnDisconnected(this);
     m_CloseHandler(this);
 }
