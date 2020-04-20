@@ -66,7 +66,6 @@ int Acceptor::handleRead()
     int connfd = network::accept(m_acceptfd);
     if (connfd >= 0)
     {
-        LOG_DBG("accept\n");
         _newConnection(connfd);
     }
     else
@@ -89,7 +88,7 @@ int Acceptor::handleRead()
 
 void Acceptor::poll()
 {
-    int n = epoll_wait(m_epollfd, &*m_EventList.begin(), m_EventList.size(), -1);
+    int n = epoll_wait(m_epollfd, &*m_EventList.begin(), m_EventList.size(), 10000);
     if (n > 0)
     {
         for (int i = 0; i < n; ++i)
@@ -101,6 +100,7 @@ void Acceptor::poll()
         if (n == m_EventList.size())
         {
             m_EventList.resize(m_EventList.size()*2);
+            printf("new event list size: %d\n", (int)m_EventList.size());
         }
     }
     else if (n == 0)
@@ -173,7 +173,7 @@ void Acceptor::_removeConnection(Connection* conn)
         // TODO: how to gracefully delete connection
         delete conn;
         conn = nullptr;
-        LOG_DBG("conn %d\n", (int)m_Connections.size());
+        printf("conn %d\n", (int)m_Connections.size());
         // this is called when connection's handleclose. so after handleclose, you can't call any connection APIs.
     }
 }
