@@ -17,10 +17,11 @@ IgnorePipe() {::signal(SIGPIPE, SIG_IGN);} // ignore sigpipe, must run before so
 };
 IgnorePipe obj;
 
-Acceptor::Acceptor(uint16_t port) : 
+Acceptor::Acceptor(uint16_t port, bool et) : 
     m_acceptfd(network::createsocket()),
     m_idlefd(::open("/dev/null", O_RDONLY | O_CLOEXEC)),
     m_Listening(false),
+    m_et(et),
     m_EventList(m_InitEventListSize),
     m_AcceptContext(m_acceptfd)
 {
@@ -162,7 +163,7 @@ void Acceptor::_newConnection(int sockfd)
      Connection* conn = new Connection(sockfd, this, m_Handler);
      m_Connections[sockfd] = conn;
      conn->setCloseHandler([=](Connection* conn){this->_removeConnection(conn);});
-     conn->connectEstablished();
+     conn->connectEstablished(m_et);
 }
 
 void Acceptor::_removeConnection(Connection* conn)

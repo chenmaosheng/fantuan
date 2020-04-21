@@ -12,12 +12,16 @@ namespace fantuan
 class Acceptor
 {
 public:
-    Acceptor(uint16_t port);
+    Acceptor(uint16_t port, bool et = false);
     ~Acceptor();
 
     bool isListening() const
     {
         return m_Listening;
+    }
+    bool isEt() const
+    {
+        return m_et;
     }
 
     // accept
@@ -44,6 +48,7 @@ private:
     int m_acceptfd;
     int m_idlefd;
     bool m_Listening;
+    bool m_et;
     Context m_AcceptContext;
     // epoll
     const static int m_InitEventListSize = 16;

@@ -38,8 +38,9 @@ void Context::handleEvent()
     }
 }
 
-void Context::enableWriting()
+void Context::enableWriting(bool et)
 {
+    if (et) m_Events |= EPOLLET;
     m_Events |= EPOLLOUT;
     m_handler.m_UpdateContextHandler(this);
 }
@@ -50,8 +51,9 @@ void Context::disableWriting()
     m_handler.m_UpdateContextHandler(this);
 }
 
-void Context::enableReading()
+void Context::enableReading(bool et)
 {
+    if (et) m_Events |= EPOLLET;
     m_Events |= (EPOLLIN | EPOLLPRI);
     m_handler.m_UpdateContextHandler(this);
 }

@@ -61,11 +61,19 @@ void Connection::handleRead()
             return;
         }
         n+=count;
+        if (m_Acceptor->isEt() && n == sizeof(m_InputBuffer))
+        {
+            printf("sock=%d, read full: %ld\n", m_sockfd, n);
+            // reach buffer maxsize, need to notify user, et only
+            m_Handler.m_OnData(this, (uint16_t)n, m_InputBuffer);
+            bzero(&m_InputBuffer, sizeof(m_InputBuffer));
+            n = 0;
+        }
     } while (n<sizeof(m_InputBuffer));
     
     if (n > 0)
     {
-        //printf("sock=%d, read: %ld\n", m_sockfd, n);
+        printf("sock=%d, read: %ld\n", m_sockfd, n);
         m_Handler.m_OnData(this, (uint16_t)n, m_InputBuffer);
         // TEST SEND FLOW
         if (count > 0 || errno == EAGAIN)
@@ -77,33 +85,51 @@ void Connection::handleWrite()
 {
     if (m_Context->isWriting())
     {
-        ssize_t count = network::write(m_sockfd, m_OutputBuffer.peek(), m_OutputBuffer.pendingBytes());
-        if (count > 0)
+        while (m_OutputBuffer.pendingBytes() != 0)
         {
-            m_OutputBuffer.retrieve(count);
-            printf("sock=%d, handleWrite: %ld\n", m_sockfd, count);
-            if (m_OutputBuffer.pendingBytes() == 0)
+            ssize_t count = network::write(m_sockfd, m_OutputBuffer.peek(), m_OutputBuffer.pendingBytes());
+            if (count >= 0)
             {
-                printf("sock=%d, disablewrite\n", m_sockfd);
-                m_Context->disableWriting();
-                // TODO: write complete callback
-                if (m_State == DISCONNECTING)
+                m_OutputBuffer.retrieve(count);
+                printf("sock=%d, handleWrite: %ld\n", m_sockfd, count);
+                if (m_OutputBuffer.pendingBytes() == 0)
                 {
-                    shutdown();
+                    if (!m_Acceptor->isEt())
+                    {
+                        printf("sock=%d, disablewrite\n", m_sockfd);
+                        m_Context->disableWriting();
+                    }
+                    // TODO: write complete callback
+                    if (m_State == DISCONNECTING)
+                    {
+                        shutdown();
+                    }
+                    break;
+                }
+                if (!m_Acceptor->isEt())
+                {
+                    // lt mode, epollout is always notified until disablewriting
+                    // so not necessary to loop write here
+                    // but et mode, epollout only notified once.
+                    break;
                 }
             }
-        }
-        else
-        {
-            // TODO: no error handling?
-            assert(false && "write error");
+            else
+            {
+                if (errno == EAGAIN || errno == EWOULDBLOCK)
+                {
+                    // here means send buffer is full
+                    break;
+                }
+                // TODO: no error handling?
+                assert(false && "write error");
+            }
         }
     }
     else
     {
         // TODO: trace no writing
     }
-    
 }
 
 void Connection::handleClose()
@@ -140,12 +166,13 @@ void Connection::send(const void* data, uint32_t len)
     ssize_t nwrote = 0;
     size_t remaining = len;
     bool fatalError = false;
-    if (!m_Context->isWriting() && m_OutputBuffer.pendingBytes() == 0)
+    if ((!m_Acceptor->isEt() && !m_Context->isWriting() && m_OutputBuffer.pendingBytes() == 0) ||
+        (m_Acceptor->isEt() && m_OutputBuffer.pendingBytes() == 0))
     {
         nwrote = network::write(m_sockfd, data, len);
         if (nwrote >= 0)
         {
-            //printf("sock=%d, write: %ld\n", m_sockfd, nwrote);
+            printf("sock=%d, write: %ld\n", m_sockfd, nwrote);
             remaining = len - nwrote;
             if (remaining == 0)
             {
@@ -178,7 +205,7 @@ void Connection::send(const void* data, uint32_t len)
         printf("sock=%d, avail=%d, remaining=%d, sentIndex=%d\n", m_sockfd, 
             (int)m_OutputBuffer.availBytes(), (int)remaining, (int)m_OutputBuffer.getSentIndex());
         m_OutputBuffer.append((char*)data+nwrote, remaining);
-        if (!m_Context->isWriting())
+        if (!m_Acceptor->isEt() && !m_Context->isWriting())
         {
             printf("sock=%d, enableWriting\n", m_sockfd);
             m_Context->enableWriting();
@@ -186,11 +213,12 @@ void Connection::send(const void* data, uint32_t len)
     }
 }
 
-void Connection::connectEstablished()
+void Connection::connectEstablished(bool et)
 {
     assert(m_State == CONNECTING);
     m_State = CONNECTED;
-    m_Context->enableReading();
+    m_Context->enableReading(et);
+    if (et) m_Context->enableWriting(et);
     m_Handler.m_OnConnection(this);
 }
 

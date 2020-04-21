@@ -34,9 +34,9 @@ public:
         m_activeEvents = events;
     }
 
-    void enableWriting();
+    void enableWriting(bool et = false);
     void disableWriting();
-    void enableReading();
+    void enableReading(bool et = false);
     void disableReading();
     void disableAll();
     bool isWriting() const
