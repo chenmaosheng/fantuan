@@ -1,0 +1,94 @@
+fantuan LT ab -n 100000 -k -r -c 1000 localhost:8081/
+Concurrency Level:      1000
+Time taken for tests:   6.775 seconds
+Complete requests:      100000
+Failed requests:        0
+Non-2xx responses:      100000
+Keep-Alive requests:    100000
+Total transferred:      10600000 bytes
+HTML transferred:       0 bytes
+Requests per second:    14760.05 [#/sec] (mean)
+Time per request:       67.750 [ms] (mean)
+Time per request:       0.068 [ms] (mean, across all concurrent requests)
+Transfer rate:          1527.90 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    1  15.4      0     214
+Processing:    16   65  23.0     51     128
+Waiting:       16   65  23.0     51     128
+Total:         16   67  28.9     51     294
+
+Percentage of the requests served within a certain time (ms)
+  50%     51
+  66%     84
+  75%     92
+  80%     94
+  90%     99
+  95%    102
+  98%    107
+  99%    190
+ 100%    294 (longest request)
+
+fantuan ET ab -n 100000 -k -r -c 1000 localhost:8081/
+Concurrency Level:      1000
+Time taken for tests:   7.318 seconds
+Complete requests:      100000
+Failed requests:        0
+Non-2xx responses:      100000
+Keep-Alive requests:    100000
+Total transferred:      10600000 bytes
+HTML transferred:       0 bytes
+Requests per second:    13665.76 [#/sec] (mean)
+Time per request:       73.176 [ms] (mean)
+Time per request:       0.073 [ms] (mean, across all concurrent requests)
+Transfer rate:          1414.62 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    2  15.5      0     214
+Processing:    18   71   8.3     69     173
+Waiting:       18   70   8.3     69     173
+Total:         18   72  18.3     69     295
+
+Percentage of the requests served within a certain time (ms)
+  50%     69
+  66%     70
+  75%     71
+  80%     72
+  90%     76
+  95%     81
+  98%     98
+  99%    164
+ 100%    295 (longest request)
+
+muduo ab -n 100000 -k -r -c 1000 localhost:8000/hello
+Concurrency Level:      1000
+Time taken for tests:   7.065 seconds
+Complete requests:      100000
+Failed requests:        0
+Keep-Alive requests:    100000
+Total transferred:      11800000 bytes
+HTML transferred:       1400000 bytes
+Requests per second:    14153.51 [#/sec] (mean)
+Time per request:       70.654 [ms] (mean)
+Time per request:       0.071 [ms] (mean, across all concurrent requests)
+Transfer rate:          1630.97 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    2  15.7      0     224
+Processing:     6   68  24.9     68     151
+Waiting:        5   68  24.9     68     151
+Total:          6   69  29.9     68     297
+
+Percentage of the requests served within a certain time (ms)
+  50%     68
+  66%     84
+  75%     91
+  80%     94
+  90%    100
+  95%    104
+  98%    112
+  99%    180
+ 100%    297 (longest request)
