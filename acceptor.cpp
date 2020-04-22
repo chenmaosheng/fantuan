@@ -89,7 +89,7 @@ int Acceptor::handleRead()
     return connfd;
 }
 
-void Acceptor::poll()
+void Acceptor::poll(int timeout)
 {
     int n = epoll_wait(m_epollfd, &*m_EventList.begin(), m_EventList.size(), 10000);
     if (n > 0)
@@ -99,6 +99,9 @@ void Acceptor::poll()
             Context* context = (Context*)m_EventList[i].data.ptr;
             context->setActiveEvents(m_EventList[i].events);
             context->handleEvent();
+            // make sure all events have been handled, then check if connection is already destroyed
+            // this should be the better and more graceful behavior
+            _postHandleEvent(context->getSockFd());
         }
         if (n == m_EventList.size())
         {
@@ -170,14 +173,23 @@ void Acceptor::_removeConnection(Connection* conn)
 {
     if (conn)
     {
-        m_Connections.erase(conn->getSockfd());
         conn->connectDestroyed();
-        // TODO: can't delete connection here, because this function is called by connection itself. 
-        // TODO: how to gracefully delete connection
-        delete conn;
-        conn = nullptr;
-        printf("conn %d\n", (int)m_Connections.size());
-        // this is called when connection's handleclose. so after handleclose, you can't call any connection APIs.
+    }
+}
+
+void Acceptor::_postHandleEvent(int sockfd)
+{
+    auto mit = m_Connections.find(sockfd);
+    if (mit != m_Connections.end())
+    {
+        Connection* conn = mit->second;
+        if (conn->Disconnected())
+        {
+            m_Connections.erase(sockfd);
+            delete conn;
+            conn = nullptr;
+            printf("conn %d\n", (int)m_Connections.size());
+        }
     }
 }
 

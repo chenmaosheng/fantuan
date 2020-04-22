@@ -30,10 +30,13 @@ Connection::Connection(int sockfd, Acceptor* acceptor, const ConnectionHandler& 
 Connection::~Connection()
 {
     assert(m_State == DISCONNECTED);
+    delete m_Context;
+    m_Context = nullptr;
 }
 
 void Connection::handleRead()
 {
+    if (m_State != CONNECTED) return;
     ssize_t count, n = 0;
     do
     {
@@ -83,6 +86,7 @@ void Connection::handleRead()
 
 void Connection::handleWrite()
 {
+    if (m_State != CONNECTED) return;
     if (m_Context->isWriting())
     {
         while (m_OutputBuffer.pendingBytes() != 0)
@@ -184,7 +188,7 @@ void Connection::send(const void* data, uint32_t len)
         {
             nwrote = 0;
             // TODO: what about EINTR
-            // EAGAIN means send buffer is empty
+            // EAGAIN means send buffer is full
             if (errno != EAGAIN && errno != EWOULDBLOCK)
             {
                 printf("sock=%d, send error: %d\n", m_sockfd, errno);
@@ -227,10 +231,10 @@ void Connection::connectDestroyed()
     if (m_State == CONNECTED)
     {
         m_State = DISCONNECTED;
-        m_Acceptor->removeContext(m_Context);
+        m_Context->disableAll();
     }
-    printf("sock=%d, close socket\n", m_sockfd);
-    network::close(m_sockfd);
+    m_Acceptor->removeContext(m_Context);
+    printf("sock=%d, connection destroyed\n", m_sockfd);
 }
 
 
