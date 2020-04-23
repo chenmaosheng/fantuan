@@ -59,14 +59,14 @@ void Connection::handleRead()
         }
         if (count == 0)
         {
-            printf("sock=%d, leave\n", m_sockfd);
+            PRINTF("sock=%d, leave\n", m_sockfd);
             handleClose();
             return;
         }
         n+=count;
         if (m_Acceptor->isEt() && n == sizeof(m_InputBuffer))
         {
-            printf("sock=%d, read full: %ld\n", m_sockfd, n);
+            PRINTF("sock=%d, read full: %ld\n", m_sockfd, n);
             // reach buffer maxsize, need to notify user, et only
             m_Handler.m_OnData(this, (uint16_t)n, m_InputBuffer);
             bzero(&m_InputBuffer, sizeof(m_InputBuffer));
@@ -76,7 +76,7 @@ void Connection::handleRead()
     
     if (n > 0)
     {
-        printf("sock=%d, read: %ld\n", m_sockfd, n);
+        PRINTF("sock=%d, read: %ld\n", m_sockfd, n);
         m_Handler.m_OnData(this, (uint16_t)n, m_InputBuffer);
         // TEST SEND FLOW
         if (count > 0 || errno == EAGAIN)
@@ -95,12 +95,12 @@ void Connection::handleWrite()
             if (count >= 0)
             {
                 m_OutputBuffer.retrieve(count);
-                printf("sock=%d, handleWrite: %ld\n", m_sockfd, count);
+                PRINTF("sock=%d, handleWrite: %ld\n", m_sockfd, count);
                 if (m_OutputBuffer.pendingBytes() == 0)
                 {
                     if (!m_Acceptor->isEt())
                     {
-                        printf("sock=%d, disablewrite\n", m_sockfd);
+                        PRINTF("sock=%d, disablewrite\n", m_sockfd);
                         m_Context->disableWriting();
                     }
                     // TODO: write complete callback
@@ -148,7 +148,7 @@ void Connection::handleClose()
 void Connection::handleError()
 {
     int err = network::getsockerror(m_sockfd);
-    printf("sock=%d, network error, err=%d\n", m_sockfd, err);
+    PRINTF("sock=%d, network error, err=%d\n", m_sockfd, err);
     //assert(false && "network error");
 }
 
@@ -176,7 +176,7 @@ void Connection::send(const void* data, uint32_t len)
         nwrote = network::write(m_sockfd, data, len);
         if (nwrote >= 0)
         {
-            printf("sock=%d, write: %ld\n", m_sockfd, nwrote);
+            PRINTF("sock=%d, write: %ld\n", m_sockfd, nwrote);
             remaining = len - nwrote;
             if (remaining == 0)
             {
@@ -191,7 +191,7 @@ void Connection::send(const void* data, uint32_t len)
             // EAGAIN means send buffer is full
             if (errno != EAGAIN && errno != EWOULDBLOCK)
             {
-                printf("sock=%d, send error: %d\n", m_sockfd, errno);
+                PRINTF("sock=%d, send error: %d\n", m_sockfd, errno);
                 //assert(false && "send error");
                 if (errno == EPIPE || errno == ECONNRESET)
                 {
@@ -206,12 +206,12 @@ void Connection::send(const void* data, uint32_t len)
     }
     else if (remaining > 0)
     {
-        printf("sock=%d, avail=%d, remaining=%d, sentIndex=%d\n", m_sockfd, 
+        PRINTF("sock=%d, avail=%d, remaining=%d, sentIndex=%d\n", m_sockfd, 
             (int)m_OutputBuffer.availBytes(), (int)remaining, (int)m_OutputBuffer.getSentIndex());
         m_OutputBuffer.append((char*)data+nwrote, remaining);
         if (!m_Acceptor->isEt() && !m_Context->isWriting())
         {
-            printf("sock=%d, enableWriting\n", m_sockfd);
+            PRINTF("sock=%d, enableWriting\n", m_sockfd);
             m_Context->enableWriting();
         }
     }
@@ -234,7 +234,7 @@ void Connection::connectDestroyed()
         m_Context->disableAll();
     }
     m_Acceptor->removeContext(m_Context);
-    printf("sock=%d, connection destroyed\n", m_sockfd);
+    PRINTF("sock=%d, connection destroyed\n", m_sockfd);
 }
 
 

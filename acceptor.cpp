@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <signal.h>
+#include "common/utils.h"
 
 namespace fantuan
 {
@@ -106,7 +107,7 @@ void Acceptor::poll(int timeout)
         if (n == m_EventList.size())
         {
             m_EventList.resize(m_EventList.size()*2);
-            printf("n=%d, new event list size: %d\n", n, (int)m_EventList.size());
+            PRINTF("n=%d, new event list size: %d\n", n, (int)m_EventList.size());
         }
     }
     else if (n == 0)
@@ -186,9 +187,8 @@ void Acceptor::_postHandleEvent(int sockfd)
         if (conn->Disconnected())
         {
             m_Connections.erase(sockfd);
-            delete conn;
-            conn = nullptr;
-            printf("conn %d\n", (int)m_Connections.size());
+            SAFE_DELETE(conn);
+            PRINTF("conn %d\n", (int)m_Connections.size());
         }
     }
 }
