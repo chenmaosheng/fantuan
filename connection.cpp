@@ -6,6 +6,7 @@
 #include "network.h"
 #include <string.h>
 #include <assert.h>
+#include "common/utils.h"
 
 namespace fantuan
 {
