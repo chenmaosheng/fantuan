@@ -74,6 +74,7 @@ int Acceptor::handleRead()
     }
     else
     {
+        PRINTF("accept failed, err=%d\n", errno);
         assert(false && "accept failed");
         // if file descriptor has used up, it'll cause accept failure and return EMFILE error
         // but it doesn't refuse this connection, still in connection queue, and still can 
