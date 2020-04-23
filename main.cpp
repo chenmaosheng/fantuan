@@ -8,7 +8,7 @@ using namespace fantuan;
 
 int main(int argc, char* argv[])
 {
-    Acceptor acceptor(8081);
+    Acceptor acceptor(8081, true);
     acceptor.listen();
     while (true)
     {

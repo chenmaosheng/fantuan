@@ -12,19 +12,23 @@ namespace fantuan
 class Acceptor
 {
 public:
-    Acceptor(uint16_t port);
+    Acceptor(uint16_t port, bool et = false);
     ~Acceptor();
 
     bool isListening() const
     {
         return m_Listening;
     }
+    bool isEt() const
+    {
+        return m_et;
+    }
 
     // accept
     void listen();
     int handleRead();
     // epoll
-    void poll();
+    void poll(int timeout=10000); // 10000ms
     void updateContext(Context* context);
     void removeContext(Context* context);
     // server
@@ -34,16 +38,19 @@ public:
     }
 
 private:
+    // epoll
     void _updateContext(int operation, Context* context);
     // server
     void _newConnection(int sockfd);
     void _removeConnection(Connection* conn);
+    void _postHandleEvent(int sockfd);
 
 private:
     // accept
     int m_acceptfd;
     int m_idlefd;
     bool m_Listening;
+    bool m_et;
     Context m_AcceptContext;
     // epoll
     const static int m_InitEventListSize = 16;

@@ -44,7 +44,7 @@ public:
     void shutdown();
 
     void send(const void* data, uint32_t len);
-    void connectEstablished();
+    void connectEstablished(bool et = false);
     void connectDestroyed();
     void setCloseHandler(const OnClose& handler)
     {

@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <signal.h>
+#include "common/utils.h"
 
 namespace fantuan
 {
@@ -17,10 +18,11 @@ IgnorePipe() {::signal(SIGPIPE, SIG_IGN);} // ignore sigpipe, must run before so
 };
 IgnorePipe obj;
 
-Acceptor::Acceptor(uint16_t port) : 
+Acceptor::Acceptor(uint16_t port, bool et) : 
     m_acceptfd(network::createsocket()),
     m_idlefd(::open("/dev/null", O_RDONLY | O_CLOEXEC)),
     m_Listening(false),
+    m_et(et),
     m_EventList(m_InitEventListSize),
     m_AcceptContext(m_acceptfd)
 {
@@ -72,6 +74,7 @@ int Acceptor::handleRead()
     }
     else
     {
+        PRINTF("accept failed, err=%d\n", errno);
         assert(false && "accept failed");
         // if file descriptor has used up, it'll cause accept failure and return EMFILE error
         // but it doesn't refuse this connection, still in connection queue, and still can 
@@ -88,7 +91,7 @@ int Acceptor::handleRead()
     return connfd;
 }
 
-void Acceptor::poll()
+void Acceptor::poll(int timeout)
 {
     int n = epoll_wait(m_epollfd, &*m_EventList.begin(), m_EventList.size(), 10000);
     if (n > 0)
@@ -98,11 +101,14 @@ void Acceptor::poll()
             Context* context = (Context*)m_EventList[i].data.ptr;
             context->setActiveEvents(m_EventList[i].events);
             context->handleEvent();
+            // make sure all events have been handled, then check if connection is already destroyed
+            // this should be the better and more graceful behavior
+            _postHandleEvent(context->getSockFd());
         }
         if (n == m_EventList.size())
         {
             m_EventList.resize(m_EventList.size()*2);
-            printf("n=%d, new event list size: %d\n", n, (int)m_EventList.size());
+            PRINTF("n=%d, new event list size: %d\n", n, (int)m_EventList.size());
         }
     }
     else if (n == 0)
@@ -162,21 +168,29 @@ void Acceptor::_newConnection(int sockfd)
      Connection* conn = new Connection(sockfd, this, m_Handler);
      m_Connections[sockfd] = conn;
      conn->setCloseHandler([=](Connection* conn){this->_removeConnection(conn);});
-     conn->connectEstablished();
+     conn->connectEstablished(m_et);
 }
 
 void Acceptor::_removeConnection(Connection* conn)
 {
     if (conn)
     {
-        m_Connections.erase(conn->getSockfd());
         conn->connectDestroyed();
-        // TODO: can't delete connection here, because this function is called by connection itself. 
-        // TODO: how to gracefully delete connection
-        delete conn;
-        conn = nullptr;
-        printf("conn %d\n", (int)m_Connections.size());
-        // this is called when connection's handleclose. so after handleclose, you can't call any connection APIs.
+    }
+}
+
+void Acceptor::_postHandleEvent(int sockfd)
+{
+    auto mit = m_Connections.find(sockfd);
+    if (mit != m_Connections.end())
+    {
+        Connection* conn = mit->second;
+        if (conn->Disconnected())
+        {
+            m_Connections.erase(sockfd);
+            SAFE_DELETE(conn);
+            PRINTF("conn %d\n", (int)m_Connections.size());
+        }
     }
 }
 

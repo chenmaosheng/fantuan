@@ -1,0 +1,33 @@
+ab -n 100000 -k -r -c 1000 localhost:8081/
+ab -n 100000 -k -r -c 5000 localhost:8081/
+ab -n 1000000 -k -r -c 5000 localhost:8081/
+
+,ET,LT,Muduo
+Concurrency Level,5000,5000,5000
+Complete requests,100000,100000,100000
+Time Taken,7.557,8.138,8.476
+RPS,13232,12288,11798
+Time per request,377.865,406.889,423.783
+Trasfer rate,1364.71,1262.93,1359.59
+50% of request time spend,303,317,370
+90% of request time spend,360,468,498
+,,,
+,ET,LT,Muduo
+Concurrency Level,5000,5000,5000
+Complete requests,1000000,1000000,1000000
+Time Taken,64.757,68.107,73.606
+RPS,15442,14682,13585
+Time per request,323,340,368
+Trasfer rate,1587,1519,1565
+50% of request time spend,308,359,462
+90% of request time spend,339,468,504
+,,,
+,ET,LT,Muduo
+Concurrency Level,1000,1000,1000
+Complete requests,100000,100000,100000
+Time Taken,6.08,5.98,6.31
+RPS,16641,16712,15828
+Time per request,60,59,63
+Trasfer rate,1722,1730,1823
+50% of request time spend,57,49,66
+90% of request time spend,60,81,86
