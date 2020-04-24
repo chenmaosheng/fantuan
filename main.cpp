@@ -9,7 +9,7 @@ using namespace fantuan;
 
 int main(int argc, char* argv[])
 {
-    Acceptor acceptor(8081, true);
+    Acceptor acceptor(8081, 2);
     acceptor.start();
     return 0;
 }

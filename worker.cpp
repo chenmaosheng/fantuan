@@ -18,18 +18,24 @@ namespace fantuan
 {
 Worker::Worker() : 
     m_Quit(false), 
-    m_EventList(m_InitEventListSize)
+    m_EventList(m_InitEventListSize),
+    m_Thread(nullptr)
 {
     m_epollfd = ::epoll_create1(EPOLL_CLOEXEC);
     if (m_epollfd < 0)
     {
         assert(false && "create epoll failed");
     }
-    m_PostEventHandler = [=](int){};
 }
 
 Worker::~Worker()
 {
+    if (m_Thread)
+    {
+        m_Quit = true;
+        m_Thread->join();
+        SAFE_DELETE(m_Thread);
+    }
     ::close(m_epollfd);
 }
 
@@ -58,7 +64,10 @@ void Worker::poll(int timeout)
             context->handleEvent();
             // make sure all events have been handled, then check if connection is already destroyed
             // this should be the better and more graceful behavior
-            m_PostEventHandler(context->getSockFd());
+            if (m_PostEventHandler)
+            {
+                m_PostEventHandler(context->getSockFd());
+            }
         }
         if (n == m_EventList.size())
         {
@@ -116,6 +125,11 @@ void Worker::_updateContext(int operation, Context* context)
     {
         assert(false && "epoll_ctl error");
     }
+}
+
+void Worker::startThread()
+{
+    m_Thread = new std::thread(std::bind(&Worker::loop, this));
 }
 
 }

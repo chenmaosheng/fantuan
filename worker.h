@@ -5,6 +5,8 @@
 #include <functional>
 #include <atomic>
 #include <sys/epoll.h>
+#include <thread>
+#include "handler.h"
 
 namespace fantuan
 {
@@ -12,7 +14,6 @@ class Context;
 class Worker
 {
 public:
-    using PostEventHandler = std::function<void(int)>;
     Worker();
     ~Worker();
 
@@ -27,6 +28,8 @@ public:
     void updateContext(Context* context);
     void removeContext(Context* context);
 
+    void startThread();
+
 private:
     void _updateContext(int operation, Context* context);
 
@@ -36,6 +39,7 @@ private:
     int m_epollfd;
     std::vector<epoll_event> m_EventList;
     PostEventHandler m_PostEventHandler;
+    std::thread* m_Thread;
 };
 }
 

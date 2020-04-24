@@ -70,7 +70,10 @@ void Connection::handleRead()
         {
             PRINTF("sock=%d, read full: %ld\n", m_sockfd, n);
             // reach buffer maxsize, need to notify user, et only
-            m_Handler.m_OnData(this, (uint16_t)n, m_InputBuffer);
+            if (m_Handler.m_OnData)
+            {
+                m_Handler.m_OnData(this, (uint16_t)n, m_InputBuffer);
+            }
             bzero(&m_InputBuffer, sizeof(m_InputBuffer));
             n = 0;
         }
@@ -79,7 +82,10 @@ void Connection::handleRead()
     if (n > 0)
     {
         PRINTF("sock=%d, read: %ld\n", m_sockfd, n);
-        m_Handler.m_OnData(this, (uint16_t)n, m_InputBuffer);
+        if (m_Handler.m_OnData)
+        {
+            m_Handler.m_OnData(this, (uint16_t)n, m_InputBuffer);
+        }
         // TEST SEND FLOW
         if (count > 0 || errno == EAGAIN)
             send(m_InputBuffer, n);
@@ -143,7 +149,10 @@ void Connection::handleClose()
     assert(m_State == CONNECTED || m_State == DISCONNECTING);
     m_State = DISCONNECTED;
     m_Context->disableAll();
-    m_Handler.m_OnDisconnected(this);
+    if (m_Handler.m_OnConnection)
+    {
+        m_Handler.m_OnDisconnected(this);
+    }
     m_CloseHandler(this);
 }
 
@@ -225,7 +234,10 @@ void Connection::connectEstablished(bool et)
     m_State = CONNECTED;
     m_Context->enableReading(et);
     if (et) m_Context->enableWriting(et);
-    m_Handler.m_OnConnection(this);
+    if (m_Handler.m_OnConnection)
+    {
+        m_Handler.m_OnConnection(this);
+    }
 }
 
 void Connection::connectDestroyed()

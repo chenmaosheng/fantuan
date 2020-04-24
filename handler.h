@@ -20,6 +20,7 @@ struct ConnectionHandler
 
 class Context;
 using EventHandler = std::function<void()>;
+using PostEventHandler = std::function<void(int)>;
 using UpdateContextHandler = std::function<void(Context*)>;
 struct ContextHandler
 {

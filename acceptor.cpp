@@ -10,17 +10,19 @@
 #include <signal.h>
 #include "common/utils.h"
 #include "worker.h"
+#include "workerpool.h"
 
 namespace fantuan
 {
 
-Acceptor::Acceptor(uint16_t port, bool et) : 
+Acceptor::Acceptor(uint16_t port, int numThreads, bool et) : 
     m_acceptfd(network::createsocket()),
     m_idlefd(::open("/dev/null", O_RDONLY | O_CLOEXEC)),
     m_Listening(false),
     m_et(et),
     m_Worker(new Worker),
-    m_AcceptContext(m_Worker, m_acceptfd)
+    m_AcceptContext(m_Worker, m_acceptfd),
+    m_WorkerPool(new WorkerPool(m_Worker, numThreads))
 {
     network::setTcpNoDelay(m_acceptfd, true);
     network::setReusePort(m_acceptfd, true);
@@ -28,11 +30,8 @@ Acceptor::Acceptor(uint16_t port, bool et) :
     ContextHandler handler;
     handler.m_ReadHandler = [=](){this->handleRead();};
     m_AcceptContext.setHandler(handler);
-
-    m_Handler.m_OnConnection = [=](Connection*){};
-    m_Handler.m_OnDisconnected = [=](Connection*){};
-    m_Handler.m_OnData = [=](Connection*, uint16_t, char*){};
-    m_Worker->SetPostEventHandler([=](int sockfd){this->_postHandleEvent(sockfd);});
+    m_PostEventHandler = [=](int sockfd){this->_postHandleEvent(sockfd);};
+    m_Worker->SetPostEventHandler(m_PostEventHandler);
 }
 
 Acceptor::~Acceptor()
@@ -45,6 +44,7 @@ Acceptor::~Acceptor()
     m_AcceptContext.disableAll();
     m_AcceptContext.remove();
     SAFE_DELETE(m_Worker);
+    SAFE_DELETE(m_WorkerPool);
     ::close(m_idlefd);
 }
 
@@ -57,6 +57,12 @@ void Acceptor::listen()
 
 void Acceptor::start()
 {
+    m_WorkerPool->start();
+    const std::vector<Worker*>& workers = m_WorkerPool->getWorkers();
+    for (auto worker : workers)
+    {
+        worker->SetPostEventHandler(m_PostEventHandler);
+    }
     listen();
     m_Worker->loop();
 }
@@ -89,10 +95,12 @@ int Acceptor::handleRead()
 
 void Acceptor::_newConnection(int sockfd)
 {
-     Connection* conn = new Connection(m_Worker, sockfd, this, m_Handler);
-     m_Connections[sockfd] = conn;
-     conn->setCloseHandler([=](Connection* conn){this->_removeConnection(conn);});
-     conn->connectEstablished(m_et);
+    Worker* worker = m_WorkerPool->getNext();
+    Connection* conn = new Connection(worker, sockfd, this, m_Handler);
+    PRINTF("sock=%d, worker=%p\n", sockfd, worker);
+    m_Connections[sockfd] = conn;
+    conn->setCloseHandler([=](Connection* conn){this->_removeConnection(conn);});
+    conn->connectEstablished(m_et);
 }
 
 void Acceptor::_removeConnection(Connection* conn)

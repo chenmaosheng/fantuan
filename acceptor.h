@@ -8,10 +8,11 @@
 namespace fantuan
 {
 class Worker;
+class WorkerPool;
 class Acceptor
 {
 public:
-    Acceptor(uint16_t port, bool et = false);
+    Acceptor(uint16_t port, int numThreads=0, bool et=false);
     ~Acceptor();
 
     bool isListening() const
@@ -50,6 +51,8 @@ private:
     // server
     ConnectionHandler m_Handler;
     std::unordered_map<int, Connection*> m_Connections;
+    WorkerPool* m_WorkerPool;
+    PostEventHandler m_PostEventHandler;
 };
 }
 
