@@ -7,11 +7,12 @@
 
 namespace fantuan
 {
+class Worker;
 class Connection
 {
 public:
     enum State { DISCONNECTED, CONNECTING, CONNECTED, DISCONNECTING };
-    Connection(int sockfd, Acceptor* acceptor, const ConnectionHandler& handler);
+    Connection(Worker* worker, int sockfd, Acceptor* acceptor, const ConnectionHandler& handler);
     ~Connection();
 
     int getSockfd() const
@@ -60,6 +61,7 @@ private:
     const ConnectionHandler& m_Handler;
     OnClose m_CloseHandler;
     State m_State;
+    Worker* m_Worker;
 };
 }
 

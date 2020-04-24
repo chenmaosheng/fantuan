@@ -7,15 +7,17 @@
 #include <string.h>
 #include <assert.h>
 #include "common/utils.h"
+#include "worker.h"
 
 namespace fantuan
 {
-Connection::Connection(int sockfd, Acceptor* acceptor, const ConnectionHandler& handler) :
+Connection::Connection(Worker* worker, int sockfd, Acceptor* acceptor, const ConnectionHandler& handler) :
     m_sockfd(sockfd),
     m_Acceptor(acceptor),
-    m_Context(new Context(sockfd)),
+    m_Context(new Context(worker, sockfd)),
     m_Handler(handler),
-    m_State(CONNECTING)
+    m_State(CONNECTING),
+    m_Worker(worker)
 {
     bzero(&m_InputBuffer, sizeof(m_InputBuffer));
     ContextHandler contextHandler;
@@ -23,7 +25,7 @@ Connection::Connection(int sockfd, Acceptor* acceptor, const ConnectionHandler& 
     contextHandler.m_WriteHandler = [=](){this->handleWrite();};
     contextHandler.m_ErrorHandler = [=](){this->handleError();};
     contextHandler.m_CloseHandler = [=](){this->handleClose();};
-    contextHandler.m_UpdateContextHandler = [=](Context* context){this->m_Acceptor->updateContext(context);};
+    contextHandler.m_UpdateContextHandler = [=](Context* context){this->m_Worker->updateContext(context);};
     m_Context->setHandler(contextHandler);
     network::setKeepAlive(m_sockfd, true);
 }
@@ -31,8 +33,7 @@ Connection::Connection(int sockfd, Acceptor* acceptor, const ConnectionHandler& 
 Connection::~Connection()
 {
     assert(m_State == DISCONNECTED);
-    delete m_Context;
-    m_Context = nullptr;
+    SAFE_DELETE(m_Context);
 }
 
 void Connection::handleRead()
@@ -234,7 +235,7 @@ void Connection::connectDestroyed()
         m_State = DISCONNECTED;
         m_Context->disableAll();
     }
-    m_Acceptor->removeContext(m_Context);
+    m_Worker->removeContext(m_Context);
     PRINTF("sock=%d, connection destroyed\n", m_sockfd);
 }
 

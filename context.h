@@ -7,11 +7,12 @@
 namespace fantuan
 {
 class Connection;
+class Worker;
 class Context
 {
 public:
     enum State { NEW, ADDED, DELETED};
-    Context(int sockfd);
+    Context(Worker* worker, int sockfd);
     ~Context();
 
     void setHandler(const ContextHandler& handler)
@@ -55,6 +56,10 @@ public:
     {
         return m_state;
     }
+    void remove();
+
+private:
+    void _update();
 
 private:
     const int m_sockfd;
@@ -62,6 +67,7 @@ private:
     int m_activeEvents;
     ContextHandler m_handler;
     State m_state;
+    Worker* m_Worker;
 };
 }
 

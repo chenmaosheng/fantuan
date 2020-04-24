@@ -1,14 +1,16 @@
 #include "context.h"
 #include "connection.h"
 #include <stdio.h>
+#include "worker.h"
 
 namespace fantuan
 {
-Context::Context(int sockfd) :
+Context::Context(Worker* worker, int sockfd) :
     m_sockfd(sockfd),
     m_Events(0),
     m_activeEvents(0),
-    m_state(NEW)
+    m_state(NEW),
+    m_Worker(worker)
 {
 
 }
@@ -42,32 +44,42 @@ void Context::enableWriting(bool et)
 {
     if (et) m_Events |= EPOLLET;
     m_Events |= EPOLLOUT;
-    m_handler.m_UpdateContextHandler(this);
+    _update();
 }
 
 void Context::disableWriting()
 {
     m_Events &= ~EPOLLOUT;
-    m_handler.m_UpdateContextHandler(this);
+    _update();
 }
 
 void Context::enableReading(bool et)
 {
     if (et) m_Events |= EPOLLET;
     m_Events |= (EPOLLIN | EPOLLPRI);
-    m_handler.m_UpdateContextHandler(this);
+    _update();
 }
 
 void Context::disableReading()
 {
     m_Events &= ~(EPOLLIN | EPOLLPRI);
-    m_handler.m_UpdateContextHandler(this);
+    _update();
 }
 
 void Context::disableAll()
 {
     m_Events = 0;
-    m_handler.m_UpdateContextHandler(this);
+    _update();
+}
+
+void Context::remove()
+{
+    m_Worker->removeContext(this);
+}
+
+void Context::_update()
+{
+    m_Worker->updateContext(this);
 }
 
 }

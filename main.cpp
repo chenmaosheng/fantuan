@@ -3,16 +3,13 @@
 #include <cstdio>
 #include <errno.h>
 #include "acceptor.h"
+#include "worker.h"
 
 using namespace fantuan;
 
 int main(int argc, char* argv[])
 {
     Acceptor acceptor(8081, true);
-    acceptor.listen();
-    while (true)
-    {
-        acceptor.poll();
-    }
+    acceptor.start();
     return 0;
 }
