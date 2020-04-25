@@ -11,13 +11,13 @@
 
 namespace fantuan
 {
-Connection::Connection(Worker* worker, int sockfd, Acceptor* acceptor, const ConnectionHandler& handler) :
+Connection::Connection(Worker* worker, int sockfd, const ConnectionHandler& handler, bool et) :
     m_sockfd(sockfd),
-    m_Acceptor(acceptor),
     m_Context(new Context(worker, sockfd)),
     m_Handler(handler),
     m_State(CONNECTING),
-    m_Worker(worker)
+    m_Worker(worker),
+    m_et(et)
 {
     bzero(&m_InputBuffer, sizeof(m_InputBuffer));
     ContextHandler contextHandler;
@@ -66,7 +66,7 @@ void Connection::handleRead()
             return;
         }
         n+=count;
-        if (m_Acceptor->isEt() && n == sizeof(m_InputBuffer))
+        if (m_et && n == sizeof(m_InputBuffer))
         {
             DEBUG("sock=%d, read full: %ld\n", m_sockfd, n);
             // reach buffer maxsize, need to notify user, et only
@@ -106,7 +106,7 @@ void Connection::handleWrite()
                 DEBUG("sock=%d, handleWrite: %ld\n", m_sockfd, count);
                 if (m_OutputBuffer.pendingBytes() == 0)
                 {
-                    if (!m_Acceptor->isEt())
+                    if (!m_et)
                     {
                         DEBUG("sock=%d, disablewrite\n", m_sockfd);
                         m_Context->disableWriting();
@@ -118,7 +118,7 @@ void Connection::handleWrite()
                     }
                     break;
                 }
-                if (!m_Acceptor->isEt())
+                if (!m_et)
                 {
                     // lt mode, epollout is always notified until disablewriting
                     // so not necessary to loop write here
@@ -181,8 +181,8 @@ void Connection::send(const void* data, uint32_t len)
     ssize_t nwrote = 0;
     size_t remaining = len;
     bool fatalError = false;
-    if ((!m_Acceptor->isEt() && !m_Context->isWriting() && m_OutputBuffer.pendingBytes() == 0) ||
-        (m_Acceptor->isEt() && m_OutputBuffer.pendingBytes() == 0))
+    if ((!m_et && !m_Context->isWriting() && m_OutputBuffer.pendingBytes() == 0) ||
+        (m_et && m_OutputBuffer.pendingBytes() == 0))
     {
         nwrote = network::write(m_sockfd, data, len);
         if (nwrote >= 0)
@@ -220,7 +220,7 @@ void Connection::send(const void* data, uint32_t len)
         DEBUG("sock=%d, avail=%d, remaining=%d, sentIndex=%d\n", m_sockfd, 
             (int)m_OutputBuffer.availBytes(), (int)remaining, (int)m_OutputBuffer.getSentIndex());
         m_OutputBuffer.append((char*)data+nwrote, remaining);
-        if (!m_Acceptor->isEt() && !m_Context->isWriting())
+        if (!m_et && !m_Context->isWriting())
         {
             DEBUG("sock=%d, enableWriting\n", m_sockfd);
             m_Context->enableWriting();

@@ -12,7 +12,7 @@ class Connection
 {
 public:
     enum State { DISCONNECTED, CONNECTING, CONNECTED, DISCONNECTING };
-    Connection(Worker* worker, int sockfd, Acceptor* acceptor, const ConnectionHandler& handler);
+    Connection(Worker* worker, int sockfd, const ConnectionHandler& handler, bool et);
     ~Connection();
 
     int getSockfd() const
@@ -25,10 +25,6 @@ public:
         return m_Context;
     }
 
-    Acceptor* getAcceptor() const
-    {
-        return m_Acceptor;
-    }
     bool Connected() const
     {
         return m_State == CONNECTED;
@@ -54,7 +50,6 @@ public:
 
 private:
     int m_sockfd;
-    Acceptor* m_Acceptor;
     Context* m_Context;
     char m_InputBuffer[4096];
     Buffer m_OutputBuffer;
@@ -62,6 +57,7 @@ private:
     OnClose m_CloseHandler;
     State m_State;
     Worker* m_Worker;
+    bool m_et;
 };
 }
 

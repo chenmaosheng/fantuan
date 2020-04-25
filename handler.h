@@ -10,6 +10,8 @@ using OnConnection = std::function<void (Connection*)>;
 using OnDisconnected = std::function<void (Connection*)>;
 using OnData = std::function<void (Connection*, uint16_t, char*)>;
 using OnClose = std::function<void (Connection*)>;
+using std::placeholders::_1;
+using OnNewConnection = std::function<void (int)>;
 
 struct ConnectionHandler
 {

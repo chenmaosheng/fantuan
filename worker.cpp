@@ -54,7 +54,7 @@ void Worker::quit()
 
 void Worker::poll(int timeout)
 {
-    int n = epoll_wait(m_epollfd, &*m_EventList.begin(), m_EventList.size(), 10000);
+    int n = epoll_wait(m_epollfd, &*m_EventList.begin(), m_EventList.size(), timeout);
     if (n > 0)
     {
         DEBUG("worker=%p, n=%d\n", this, n);
