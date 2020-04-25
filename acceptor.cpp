@@ -121,7 +121,7 @@ void Acceptor::_postHandleEvent(int sockfd)
         {
             m_Connections.erase(sockfd);
             SAFE_DELETE(conn);
-            PRINTF("conn %d\n", (int)m_Connections.size());
+            PRINTF("sock=%d, conn %d\n", sockfd, (int)m_Connections.size());
         }
     }
 }

@@ -1,15 +1,15 @@
-#include <sys/epoll.h>
-#include "network.h"
-#include <cstdio>
-#include <errno.h>
 #include "acceptor.h"
-#include "worker.h"
 
 using namespace fantuan;
 
 int main(int argc, char* argv[])
 {
-    Acceptor acceptor(8081, 2);
+    int numThread = 0, isEt = 0;
+    if (argc > 1)
+        numThread = atoi(argv[1]);
+    if (argc > 2)
+        isEt = atoi(argv[2]);
+    Acceptor acceptor(8081, numThread, isEt==1 ? true : false);
     acceptor.start();
     return 0;
 }

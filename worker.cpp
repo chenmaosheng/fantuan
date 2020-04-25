@@ -57,6 +57,7 @@ void Worker::poll(int timeout)
     int n = epoll_wait(m_epollfd, &*m_EventList.begin(), m_EventList.size(), 10000);
     if (n > 0)
     {
+        PRINTF("worker=%p, n=%d\n", this, n);
         for (int i = 0; i < n; ++i)
         {
             Context* context = (Context*)m_EventList[i].data.ptr;
@@ -72,7 +73,7 @@ void Worker::poll(int timeout)
         if (n == m_EventList.size())
         {
             m_EventList.resize(m_EventList.size()*2);
-            PRINTF("n=%d, new event list size: %d\n", n, (int)m_EventList.size());
+            PRINTF("worker=%p, n=%d, new event list size: %d\n", this, n, (int)m_EventList.size());
         }
     }
     else if (n == 0)
