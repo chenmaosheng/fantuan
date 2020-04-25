@@ -81,7 +81,7 @@ void Connection::handleRead()
     
     if (n > 0)
     {
-        DEBUG("sock=%d, read: %ld\n", m_sockfd, n);
+        TRACE("sock=%d, read: %ld\n", m_sockfd, n);
         if (m_Handler.m_OnData)
         {
             m_Handler.m_OnData(this, (uint16_t)n, m_InputBuffer);
@@ -187,7 +187,7 @@ void Connection::send(const void* data, uint32_t len)
         nwrote = network::write(m_sockfd, data, len);
         if (nwrote >= 0)
         {
-            DEBUG("sock=%d, write: %ld\n", m_sockfd, nwrote);
+            TRACE("sock=%d, write: %ld\n", m_sockfd, nwrote);
             remaining = len - nwrote;
             if (remaining == 0)
             {

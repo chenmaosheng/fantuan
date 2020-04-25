@@ -11,6 +11,7 @@
 namespace fantuan
 {
 class Context;
+class Poller;
 class Worker
 {
 public:
@@ -24,22 +25,17 @@ public:
     void loop();
     void quit();
 
-    void poll(int timeout=10000); // 10000ms
     void updateContext(Context* context);
     void removeContext(Context* context);
 
     void startThread();
 
 private:
-    void _updateContext(int operation, Context* context);
-
-private:
     std::atomic_bool m_Quit;
-    const static int m_InitEventListSize = 16;
-    int m_epollfd;
-    std::vector<epoll_event> m_EventList;
     PostEventHandler m_PostEventHandler;
     std::thread* m_Thread;
+    Poller* m_Poller;
+    std::vector<Context*> m_ActiveContexts;
 };
 }
 
