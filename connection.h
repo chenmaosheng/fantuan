@@ -48,9 +48,9 @@ public:
     void send(const void* data, uint32_t len);
     void connectEstablished();
     void connectDestroyed();
-    void setCloseHandler(const OnClose& handler)
+    void setRemoveConnectionHandler(const OnRemoveConnection& handler)
     {
-        m_CloseHandler = std::move(handler);
+        m_RemoveConnectionHandler = std::move(handler);
     }
 
 private:
@@ -59,7 +59,7 @@ private:
     char m_InputBuffer[4096];
     Buffer m_OutputBuffer;
     const ConnectionHandler& m_Handler;
-    OnClose m_CloseHandler;
+    OnRemoveConnection m_RemoveConnectionHandler;
     State m_State;
     Worker* m_Worker;
     bool m_et;

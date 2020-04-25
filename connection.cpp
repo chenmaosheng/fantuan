@@ -25,7 +25,6 @@ Connection::Connection(Worker* worker, int sockfd, const ConnectionHandler& hand
     contextHandler.m_WriteHandler = [=](){this->handleWrite();};
     contextHandler.m_ErrorHandler = [=](){this->handleError();};
     contextHandler.m_CloseHandler = [=](){this->handleClose();};
-    contextHandler.m_UpdateContextHandler = [=](Context* context){this->m_Worker->updateContext(context);};
     m_Context->setHandler(contextHandler);
     network::setKeepAlive(m_sockfd, true);
 }
@@ -62,7 +61,7 @@ void Connection::handleRead()
         if (count == 0)
         {
             DEBUG("sock=%d, leave\n", m_sockfd);
-            handleClose();
+            m_Context->setActiveClose();
             return;
         }
         n+=count;
@@ -153,7 +152,7 @@ void Connection::handleClose()
     {
         m_Handler.m_OnDisconnected(this);
     }
-    m_CloseHandler(this);
+    m_RemoveConnectionHandler(this);
 }
 
 void Connection::handleError()

@@ -29,6 +29,10 @@ public:
     {
         return m_Events;
     }
+    void setActiveClose()
+    {
+        m_activeClose = true;
+    }
 
     void setActiveEvents(int events)
     {
@@ -68,6 +72,7 @@ private:
     ContextHandler m_handler;
     State m_state;
     Worker* m_Worker;
+    bool m_activeClose;
 };
 }
 

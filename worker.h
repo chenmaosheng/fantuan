@@ -19,10 +19,6 @@ public:
     Worker();
     ~Worker();
 
-    void SetPostEventHandler(const PostEventHandler& handler)
-    {
-        m_PostEventHandler = std::move(handler);
-    }
     void loop();
     void quit();
     void run(const EventHandler& handler);
@@ -38,7 +34,6 @@ public:
     }
 private:
     std::atomic_bool m_Quit;
-    PostEventHandler m_PostEventHandler;
     std::thread* m_Thread;
     Poller* m_Poller;
     std::vector<Context*> m_ActiveContexts;

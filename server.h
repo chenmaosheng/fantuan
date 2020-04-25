@@ -25,12 +25,10 @@ public:
 private:
     void _newConnection(int sockfd);
     void _removeConnection(Connection* conn);
-    void _postHandleEvent(int sockfd);
 
 private:
     ConnectionHandler m_Handler;
     std::unordered_map<int, Connection*> m_Connections;
-    PostEventHandler m_PostEventHandler;
     Worker* m_AcceptorWorker;
     Acceptor* m_Acceptor;
     WorkerPool* m_WorkerPool;

@@ -14,15 +14,13 @@ Server::Server(uint16_t port, int numThreads, bool et) :
     m_WorkerPool(new WorkerPool(m_AcceptorWorker, numThreads))
 {
     m_Acceptor->SetOnNewConnection(std::bind(&Server::_newConnection, this, _1));
-    m_PostEventHandler = [=](int sockfd){this->_postHandleEvent(sockfd);};
-    m_AcceptorWorker->SetPostEventHandler(m_PostEventHandler);
 }
 
 Server::~Server()
 {
     for (auto& item : m_Connections)
     {
-        item.second->connectDestroyed();
+        _removeConnection(item.second);
     }
     SAFE_DELETE(m_AcceptorWorker);
     SAFE_DELETE(m_Acceptor);
@@ -32,11 +30,6 @@ Server::~Server()
 void Server::start()
 {
     m_WorkerPool->start();
-    const std::vector<Worker*>& workers = m_WorkerPool->getWorkers();
-    for (auto worker : workers)
-    {
-        worker->SetPostEventHandler(m_PostEventHandler);
-    }
     m_Acceptor->listen();
     m_AcceptorWorker->loop();
 }
@@ -47,31 +40,17 @@ void Server::_newConnection(int sockfd)
     Connection* conn = new Connection(worker, sockfd, m_Handler, m_et);
     DEBUG("sock=%d, worker=%p\n", sockfd, worker);
     m_Connections[sockfd] = conn;
-    conn->setCloseHandler([=](Connection* conn){this->_removeConnection(conn);});
-    conn->connectEstablished(m_et); // TODO: from main thread to worker thread, don't block main thread
+    conn->setRemoveConnectionHandler([=](Connection* conn){this->_removeConnection(conn);});
+    conn->connectEstablished(); // TODO: from main thread to worker thread, don't block main thread
 }
 
 void Server::_removeConnection(Connection* conn)
 {
-    if (conn)
-    {
-        conn->connectDestroyed();
-    }
-}
-
-void Server::_postHandleEvent(int sockfd)
-{
-    auto mit = m_Connections.find(sockfd);
-    if (mit != m_Connections.end())
-    {
-        Connection* conn = mit->second;
-        if (conn->Disconnected())
-        {
-            m_Connections.erase(sockfd);
-            SAFE_DELETE(conn);
-            DEBUG("sock=%d, conn %d\n", sockfd, (int)m_Connections.size());
-        }
-    }
+    conn->connectDestroyed();
+    int sockfd = conn->getSockfd();
+    m_Connections.erase(sockfd);
+    SAFE_DELETE(conn);
+    DEBUG("sock=%d, conn %d\n", sockfd, (int)m_Connections.size());
 }
 
 }

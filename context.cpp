@@ -10,7 +10,8 @@ Context::Context(Worker* worker, int sockfd) :
     m_Events(0),
     m_activeEvents(0),
     m_state(NEW),
-    m_Worker(worker)
+    m_Worker(worker),
+    m_activeClose(false)
 {
 
 }
@@ -22,21 +23,26 @@ Context::~Context()
 
 void Context::handleEvent()
 {
-    if ((m_activeEvents & EPOLLHUP) && !(m_activeEvents & EPOLLIN))
-    {
-        m_handler.m_CloseHandler();
-    }
-    if (m_activeEvents & EPOLLERR)
+    if (!m_activeClose && (m_activeEvents & EPOLLERR))
     {
         m_handler.m_ErrorHandler();
     }
-    if (m_activeEvents & (EPOLLIN | EPOLLPRI | EPOLLRDHUP))
+    if (!m_activeClose && (m_activeEvents & (EPOLLIN | EPOLLPRI | EPOLLRDHUP))) // EPOLLRDHUP means target close or shutdown write
+    // EPOLLHUP means self call shutdown RDWR, must not be close, close will invalidate file descriptor
     {
         m_handler.m_ReadHandler();
     }
-    if (m_activeEvents & EPOLLOUT)
+    if (!m_activeClose && (m_activeEvents & EPOLLOUT))
     {
         m_handler.m_WriteHandler();
+    }
+    if (!m_activeClose && (m_activeEvents & EPOLLRDHUP))
+    {
+        m_activeClose = true;
+    }
+    if (m_activeClose)
+    {
+        m_handler.m_CloseHandler();
     }
 }
 

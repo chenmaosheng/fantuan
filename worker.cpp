@@ -46,12 +46,6 @@ void Worker::loop()
         for (auto& context : m_ActiveContexts)
         {
             context->handleEvent();
-            // make sure all events have been handled, then check if connection is already destroyed
-            // this should be the better and more graceful behavior
-            if (m_PostEventHandler)
-            {
-                m_PostEventHandler(context->getSockFd());
-            }
         }
         std::vector<EventHandler> tmp;
         {
