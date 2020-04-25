@@ -148,7 +148,7 @@ void Connection::handleClose()
     assert(m_State == CONNECTED || m_State == DISCONNECTING);
     m_State = DISCONNECTED;
     m_Context->disableAll();
-    if (m_Handler.m_OnConnection)
+    if (m_Handler.m_OnDisconnected)
     {
         m_Handler.m_OnDisconnected(this);
     }
