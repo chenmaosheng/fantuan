@@ -57,8 +57,9 @@ void Worker::loop()
         {
             std::unique_lock<std::mutex> lock(m_PendingHandlerMutex);
             tmp.swap(m_PendingHandlers);
+            TRACE("worker=%p, tmp size=%d\n", this, (int)tmp.size());
         }
-        for (auto& handler : m_PendingHandlers)
+        for (auto& handler : tmp)
         {
             handler();
         }
@@ -85,7 +86,8 @@ void Worker::run(const EventHandler& handler)
 void Worker::queue(const EventHandler& handler)
 {
     std::unique_lock<std::mutex> lock(m_PendingHandlerMutex);
-    m_PendingHandlers.emplace_back(handler);
+    m_PendingHandlers.push_back(std::move(handler));
+    TRACE("worker=%p, size=%d\n", this, (int)m_PendingHandlers.size());
 }
 
 void Worker::updateContext(Context* context)

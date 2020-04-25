@@ -25,6 +25,11 @@ public:
         return m_Context;
     }
 
+    Worker* getWorker() const
+    {
+        return m_Worker;
+    }
+
     bool Connected() const
     {
         return m_State == CONNECTED;
@@ -41,7 +46,7 @@ public:
     void shutdown();
 
     void send(const void* data, uint32_t len);
-    void connectEstablished(bool et = false);
+    void connectEstablished();
     void connectDestroyed();
     void setCloseHandler(const OnClose& handler)
     {

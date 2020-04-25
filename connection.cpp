@@ -228,12 +228,13 @@ void Connection::send(const void* data, uint32_t len)
     }
 }
 
-void Connection::connectEstablished(bool et)
+void Connection::connectEstablished()
 {
     assert(m_State == CONNECTING);
+    TRACE("sock=%d, connectEstablished\n", m_sockfd);
     m_State = CONNECTED;
-    m_Context->enableReading(et);
-    if (et) m_Context->enableWriting(et);
+    m_Context->enableReading(m_et);
+    if (m_et) m_Context->enableWriting(m_et);
     if (m_Handler.m_OnConnection)
     {
         m_Handler.m_OnConnection(this);

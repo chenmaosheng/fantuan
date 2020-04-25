@@ -53,7 +53,7 @@ int Acceptor::handleRead()
     else
     {
         ERROR("accept failed, err=%d\n", errno);
-        assert(false && "accept failed");
+        //assert(false && "accept failed");
         // if file descriptor has used up, it'll cause accept failure and return EMFILE error
         // but it doesn't refuse this connection, still in connection queue, and still can 
         // trigger fd read event, this will cause busy loop. Use the following way can refuse
