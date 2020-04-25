@@ -76,7 +76,7 @@ int Acceptor::handleRead()
     }
     else
     {
-        PRINTF("accept failed, err=%d\n", errno);
+        ERROR("accept failed, err=%d\n", errno);
         assert(false && "accept failed");
         // if file descriptor has used up, it'll cause accept failure and return EMFILE error
         // but it doesn't refuse this connection, still in connection queue, and still can 
@@ -97,7 +97,7 @@ void Acceptor::_newConnection(int sockfd)
 {
     Worker* worker = m_WorkerPool->getNext();
     Connection* conn = new Connection(worker, sockfd, this, m_Handler);
-    PRINTF("sock=%d, worker=%p\n", sockfd, worker);
+    DEBUG("sock=%d, worker=%p\n", sockfd, worker);
     m_Connections[sockfd] = conn;
     conn->setCloseHandler([=](Connection* conn){this->_removeConnection(conn);});
     conn->connectEstablished(m_et);
@@ -121,7 +121,7 @@ void Acceptor::_postHandleEvent(int sockfd)
         {
             m_Connections.erase(sockfd);
             SAFE_DELETE(conn);
-            PRINTF("sock=%d, conn %d\n", sockfd, (int)m_Connections.size());
+            DEBUG("sock=%d, conn %d\n", sockfd, (int)m_Connections.size());
         }
     }
 }

@@ -4,7 +4,10 @@
 namespace fantuan
 {
 #define SAFE_DELETE(ptr)	if (ptr) {delete (ptr); (ptr) = NULL;}
-#define PRINTF(ptr, ...)    printf((ptr), __VA_ARGS__)
+#define ERROR(ptr, ...)     printf((ptr), __VA_ARGS__)
+#define DEBUG(ptr, ... )    printf((ptr), __VA_ARGS__)
+#define TRACE(ptr, ...)     //printf((ptr), __VA_ARGS__)
+#define ALERT(ptr, ...)     printf((ptr), __VA_ARGS__)
 }
 
 #endif // _H_UTILS
