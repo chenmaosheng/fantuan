@@ -20,7 +20,8 @@ namespace fantuan
 Worker::Worker() : 
     m_Quit(false), 
     m_Thread(nullptr),
-    m_Poller(new Poller)
+    m_Poller(new Poller),
+    m_ThreadId(std::this_thread::get_id())
 {
     
 }
@@ -52,12 +53,39 @@ void Worker::loop()
                 m_PostEventHandler(context->getSockFd());
             }
         }
+        std::vector<EventHandler> tmp;
+        {
+            std::unique_lock<std::mutex> lock(m_PendingHandlerMutex);
+            tmp.swap(m_PendingHandlers);
+        }
+        for (auto& handler : m_PendingHandlers)
+        {
+            handler();
+        }
     }
 }
 
 void Worker::quit()
 {
     m_Quit = true;
+}
+
+void Worker::run(const EventHandler& handler)
+{
+    if (isInSameThread())
+    {
+        handler();
+    }
+    else
+    {
+        queue(handler);
+    }
+}
+
+void Worker::queue(const EventHandler& handler)
+{
+    std::unique_lock<std::mutex> lock(m_PendingHandlerMutex);
+    m_PendingHandlers.emplace_back(handler);
 }
 
 void Worker::updateContext(Context* context)
@@ -73,6 +101,7 @@ void Worker::removeContext(Context* context)
 void Worker::startThread()
 {
     m_Thread = new std::thread(std::bind(&Worker::loop, this));
+    m_ThreadId = m_Thread->get_id();
 }
 
 }

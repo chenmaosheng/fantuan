@@ -47,7 +47,7 @@ void Server::_newConnection(int sockfd)
     Connection* conn = new Connection(worker, sockfd, m_Handler, m_et);
     DEBUG("sock=%d, worker=%p\n", sockfd, worker);
     m_Connections[sockfd] = conn;
-    conn->setCloseHandler([=](Connection* conn){this->_removeConnection(conn);}); // TODO: from main thread to worker thread, don't block main thread
+    conn->setCloseHandler([=](Connection* conn){this->_removeConnection(conn);});
     conn->connectEstablished(m_et); // TODO: from main thread to worker thread, don't block main thread
 }
 
