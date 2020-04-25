@@ -15,11 +15,14 @@
 namespace fantuan
 {
 
-Acceptor::Acceptor(Worker* worker, uint16_t port) : 
+Acceptor::Acceptor(uint16_t port, int numThreads, bool et) : 
+    m_AcceptorWorker(new Worker(true)),
+    m_WorkerPool(new WorkerPool(m_AcceptorWorker, numThreads)),
     m_acceptfd(network::createsocket()),
     m_idlefd(::open("/dev/null", O_RDONLY | O_CLOEXEC)),
     m_Listening(false),
-    m_AcceptContext(worker, m_acceptfd)
+    m_AcceptContext(m_AcceptorWorker, m_acceptfd),
+    m_et(et)
 {
     network::setTcpNoDelay(m_acceptfd, true);
     network::setReusePort(m_acceptfd, true);
@@ -34,6 +37,8 @@ Acceptor::~Acceptor()
     m_AcceptContext.disableAll();
     m_AcceptContext.remove();
     ::close(m_idlefd);
+    SAFE_DELETE(m_AcceptorWorker);
+    SAFE_DELETE(m_WorkerPool);
 }
 
 void Acceptor::listen()
@@ -43,12 +48,19 @@ void Acceptor::listen()
     m_AcceptContext.enableReading();
 }
 
+void Acceptor::start()
+{
+    m_WorkerPool->start();
+    listen();
+    m_AcceptorWorker->loop();
+}
+
 int Acceptor::handleRead()
 {
     int connfd = network::accept(m_acceptfd);
     if (connfd >= 0)
     {
-        m_OnNewConnection(connfd);
+        _newConnection(connfd);
     }
     else
     {
@@ -67,6 +79,13 @@ int Acceptor::handleRead()
         }
     }
     return connfd;
+}
+
+void Acceptor::_newConnection(int sockfd)
+{
+    Worker* worker = m_WorkerPool->getNext();
+    worker->newConnection(sockfd, m_Handler, m_et);
+    DEBUG("sock=%d, worker=%p\n", sockfd, worker);
 }
 
 }

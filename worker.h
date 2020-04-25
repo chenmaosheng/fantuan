@@ -8,38 +8,56 @@
 #include <thread>
 #include "handler.h"
 #include <mutex>
+#include <unordered_map>
 
 namespace fantuan
 {
 class Context;
 class Poller;
+class Connection;
 class Worker
 {
 public:
-    Worker();
+    struct NewConnectionParams
+    {
+        int m_sockfd;
+        ConnectionHandler m_Handler;
+        bool m_et;
+        NewConnectionParams(int sockfd, const ConnectionHandler& handler, bool et):
+            m_sockfd(sockfd), m_Handler(handler), m_et(et){}
+    };
+    Worker(bool mainWorker=false);
     ~Worker();
 
     void loop();
     void quit();
-    void run(const EventHandler& handler);
-    void queue(const EventHandler& handler);
-
+    void newConnection(int sockfd, const ConnectionHandler& handler, bool et);
+    void queueNewConnection(int sockfd, const ConnectionHandler& handler, bool et);
+    
     void updateContext(Context* context);
     void removeContext(Context* context);
 
     void startThread();
-    bool isInSameThread() const
-    {
-        return m_ThreadId == std::this_thread::get_id();
-    }
+
 private:
+    void _newConnection(int sockfd, const ConnectionHandler& handler, bool et);
+    void _removeConnection(Connection* conn);
+    void _handlePendingNewConnections();
+    void _handleWakeupRead();
+    void _wakeup();
+    
+private:
+    bool m_mainWorker;
+    bool m_handlePendingNewConnections;
     std::atomic_bool m_Quit;
     std::thread* m_Thread;
     Poller* m_Poller;
     std::vector<Context*> m_ActiveContexts;
-    std::mutex m_PendingHandlerMutex;
-    std::vector<EventHandler> m_PendingHandlers;
-    std::thread::id m_ThreadId;
+    std::mutex m_PendingNewConnectionsMutex;
+    std::vector<NewConnectionParams> m_PendingNewConnections;
+    std::unordered_map<int, Connection*> m_Connections;
+    int m_WakeupFd;
+    Context* m_WakeupContext;
 };
 }
 

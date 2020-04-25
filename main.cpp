@@ -1,4 +1,4 @@
-#include "server.h"
+#include "acceptor.h"
 
 using namespace fantuan;
 
@@ -9,7 +9,7 @@ int main(int argc, char* argv[])
         numThread = atoi(argv[1]);
     if (argc > 2)
         isEt = atoi(argv[2]);
-    Server server(8081, numThread, isEt==1 ? true : false);
-    server.start();
+    Acceptor acceptor(8081, numThread, isEt==1 ? true : false);
+    acceptor.start();
     return 0;
 }

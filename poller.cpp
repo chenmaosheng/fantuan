@@ -27,7 +27,6 @@ void Poller::poll(std::vector<Context*>& activeContexts, int timeout)
     int n = epoll_wait(m_epollfd, &*m_EventList.begin(), m_EventList.size(), timeout);
     if (n > 0)
     {
-        DEBUG("epoll=%d, n=%d\n", m_epollfd, n);
         for (int i = 0; i < n; ++i)
         {
             Context* context = (Context*)m_EventList[i].data.ptr;
@@ -37,7 +36,7 @@ void Poller::poll(std::vector<Context*>& activeContexts, int timeout)
         if (n == m_EventList.size())
         {
             m_EventList.resize(m_EventList.size()*2);
-            ALERT("worker=%p, n=%d, new event list size: %d\n", this, n, (int)m_EventList.size());
+            ALERT("new event list size: %d\n", (int)m_EventList.size());
         }
     }
     else if (n == 0)

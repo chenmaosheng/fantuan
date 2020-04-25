@@ -18,9 +18,6 @@ struct ConnectionHandler
 };
 
 using OnRemoveConnection = std::function<void (Connection*)>;
-using std::placeholders::_1;
-using OnNewConnection = std::function<void (int)>;
-class Context;
 
 using EventHandler = std::function<void()>;
 struct ContextHandler

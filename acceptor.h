@@ -7,10 +7,11 @@
 namespace fantuan
 {
 class Worker;
+class WorkerPool;
 class Acceptor
 {
 public:
-    Acceptor(Worker* worker, uint16_t port);
+    Acceptor(uint16_t port, int numThreads=0, bool et=false);
     ~Acceptor();
 
     bool isListening() const
@@ -20,19 +21,28 @@ public:
 
     void listen();
     int handleRead();
-    void SetOnNewConnection(const OnNewConnection& handler)
+    // server
+    void setHandler(const ConnectionHandler& handler)
     {
-        m_OnNewConnection = std::move(handler);
+        m_Handler = std::move(handler);
     }
+    void start();
 
 private:
+    void _newConnection(int sockfd);
+
+private:
+    // server
+    Worker* m_AcceptorWorker;
+    WorkerPool* m_WorkerPool;
+    ConnectionHandler m_Handler;
     // accept
     int m_acceptfd;
     int m_idlefd;
     bool m_Listening;
     Worker* m_Worker;
     Context m_AcceptContext;
-    OnNewConnection m_OnNewConnection;
+    bool m_et;
 };
 }
 
