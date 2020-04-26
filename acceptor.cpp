@@ -82,7 +82,7 @@ void Acceptor::_listen()
 void Acceptor::_addNewConnection(int sockfd, const sockaddr_in& addr)
 {
     Worker* worker = m_workerPool->getNext();
-    worker->addConnection(sockfd, addr, m_handler, m_et);
+    worker->runFunctor(std::bind(&Worker::addConnection, worker, sockfd, addr, m_handler, m_et));
     DEBUG("sock=%d, worker=%p\n", sockfd, worker);
 }
 

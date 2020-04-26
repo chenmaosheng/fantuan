@@ -70,23 +70,23 @@ void Worker::quit()
     m_quit = true;
 }
 
-void Worker::addConnection(int sockfd, const sockaddr_in& addr, const ConnectionHandler& handler, bool et)
+void Worker::runFunctor(Functor functor)
 {
     if (m_mainWorker)
     {
-        _addConnection(sockfd, addr, handler, et);
+        functor();
     }
     else
     {
-        queueConnection(sockfd, addr, handler, et);
+        queueFunctor(functor);
     }
 }
 
-void Worker::queueConnection(int sockfd, const sockaddr_in& addr, const ConnectionHandler& handler, bool et)
+void Worker::queueFunctor(Functor functor)
 {
-    std::unique_lock<std::mutex> lock(m_pendingNewConnectionsMutex);
-    m_pendingNewConnections.emplace_back(sockfd, addr, handler, et);
-    TRACE("worker=%p, queue size=%d\n", this, (int)m_pendingNewConnections.size());
+    std::unique_lock<std::mutex> lock(m_pendingFunctorsMutex);
+    m_pendingFunctors.emplace_back(std::move(functor));
+    TRACE("worker=%p, queue size=%d\n", this, (int)m_pendingFunctors.size());
     if (!m_mainWorker)
     {
         _wakeup();
@@ -110,7 +110,7 @@ std::thread* Worker::startThread()
     return m_thread;
 }
 
-void Worker::_addConnection(int sockfd, const sockaddr_in& addr, const ConnectionHandler& handler, bool et)
+void Worker::addConnection(int sockfd, const sockaddr_in& addr, const ConnectionHandler& handler, bool et)
 {
     Connection* conn = new Connection(this, sockfd, addr, handler, et);
     m_connections[sockfd] = conn;
@@ -129,15 +129,15 @@ void Worker::_removeConnection(Connection* conn)
 
 void Worker::_handlePendingNewConnections()
 {
-    std::vector<NewConnectionParam> tmp;
+    std::vector<Functor> tmp;
     {
-        std::unique_lock<std::mutex> lock(m_pendingNewConnectionsMutex);
-        tmp.swap(m_pendingNewConnections); // swap just in case functor call queue again to add new functor
+        std::unique_lock<std::mutex> lock(m_pendingFunctorsMutex);
+        tmp.swap(m_pendingFunctors); // swap just in case functor call queue again to add new functor
         TRACE("worker=%p, tmp size=%d\n", this, (int)tmp.size());
     }
-    for (auto& param : tmp)
+    for (auto& functor : tmp)
     {
-        _addConnection(param.m_sockfd, param.m_sockaddr, param.m_handler, param.m_et);
+        functor();
     }
 }
 
