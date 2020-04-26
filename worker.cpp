@@ -1,15 +1,15 @@
 #include "worker.h"
+#include "utils.h"
+#include "context.h"
+#include "poller.h"
+#include "connection.h"
+#include "network.h"
 #include <fcntl.h>
 #include <signal.h>
 #include <unistd.h>
 #include <errno.h>
 #include <strings.h>
 #include <assert.h>
-#include "common/utils.h"
-#include "context.h"
-#include "poller.h"
-#include "connection.h"
-#include "network.h"
 #include <sys/eventfd.h>
 
 struct IgnorePipe
@@ -22,47 +22,39 @@ namespace fantuan
 {
 Worker::Worker(bool mainWorker) : 
     m_mainWorker(mainWorker),
-    m_handlePendingNewConnections(false),
-    m_Quit(false), 
-    m_Thread(nullptr),
-    m_Poller(new Poller)
+    m_quit(false), 
+    m_thread(nullptr),
+    m_poller(new Poller),
+    m_wakeupFd(network::createeventfd()),
+    m_wakeupContext(new Context(this, m_wakeupFd))
 {
-    m_WakeupFd = ::eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
-    if (m_WakeupFd < 0)
-    {
-        ERROR("create eventfd failed, err=%d\n", errno);
-        abort();
-    }
-    m_WakeupContext = new Context(this, m_WakeupFd);
-    ContextHandler contextHandler;
-    contextHandler.m_ReadHandler = [=](){this->_handleWakeupRead();};
-    m_WakeupContext->setHandler(contextHandler);
-    m_WakeupContext->enableReading();
+    m_wakeupContext->setReadHandler([=](int64_t time){this->_handleWakeupRead(time);});
+    m_wakeupContext->enableReading();
 }
 
 Worker::~Worker()
 {
-    if (m_Thread)
+    if (m_thread)
     {
-        m_Quit = true;
-        m_Thread->join();
-        SAFE_DELETE(m_Thread);
+        m_quit = true;
+        m_thread->join();
+        SAFE_DELETE(m_thread);
     }
-    SAFE_DELETE(m_Poller);
-    m_WakeupContext->disableAll();
-    m_WakeupContext->remove();
-    SAFE_DELETE(m_WakeupContext);
-    ::close(m_WakeupFd);
+    SAFE_DELETE(m_poller);
+    m_wakeupContext->disableAll();
+    m_wakeupContext->remove();
+    SAFE_DELETE(m_wakeupContext);
+    ::close(m_wakeupFd);
 }
 
 void Worker::loop()
 {
-    while (!m_Quit)
+    while (!m_quit)
     {
-        m_ActiveContexts.clear();
-        m_Poller->poll(m_ActiveContexts);
-        DEBUG("worker=%p, epoll event n=%d\n", this, (int)m_ActiveContexts.size());
-        for (auto& context : m_ActiveContexts)
+        m_activeContexts.clear();
+        m_poller->poll(m_activeContexts);
+        DEBUG("worker=%p, epoll event n=%d\n", this, (int)m_activeContexts.size());
+        for (auto& context : m_activeContexts)
         {
             context->handleEvent();
         }
@@ -75,27 +67,27 @@ void Worker::loop()
 
 void Worker::quit()
 {
-    m_Quit = true;
+    m_quit = true;
 }
 
-void Worker::newConnection(int sockfd, const ConnectionHandler& handler, bool et)
+void Worker::addConnection(int sockfd, const sockaddr_in& addr, const ConnectionHandler& handler, bool et)
 {
     if (m_mainWorker)
     {
-        _newConnection(sockfd, handler, et);
+        _addConnection(sockfd, addr, handler, et);
     }
     else
     {
-        queueNewConnection(sockfd, handler, et);
+        queueConnection(sockfd, addr, handler, et);
     }
 }
 
-void Worker::queueNewConnection(int sockfd, const ConnectionHandler& handler, bool et)
+void Worker::queueConnection(int sockfd, const sockaddr_in& addr, const ConnectionHandler& handler, bool et)
 {
-    std::unique_lock<std::mutex> lock(m_PendingNewConnectionsMutex);
-    m_PendingNewConnections.emplace_back(NewConnectionParams(sockfd, handler, et));
-    DEBUG("worker=%p, queue size=%d\n", this, (int)m_PendingNewConnections.size());
-    if (!m_mainWorker || m_handlePendingNewConnections)
+    std::unique_lock<std::mutex> lock(m_pendingNewConnectionsMutex);
+    m_pendingNewConnections.emplace_back(sockfd, addr, handler, et);
+    TRACE("worker=%p, queue size=%d\n", this, (int)m_pendingNewConnections.size());
+    if (!m_mainWorker)
     {
         _wakeup();
         DEBUG("worker=%p, wakeup\n", this);
@@ -104,23 +96,24 @@ void Worker::queueNewConnection(int sockfd, const ConnectionHandler& handler, bo
 
 void Worker::updateContext(Context* context)
 {
-    m_Poller->updateContext(context);
+    m_poller->updateContext(context);
 }
 
 void Worker::removeContext(Context* context)
 {
-    m_Poller->removeContext(context);
+    m_poller->removeContext(context);
 }
 
-void Worker::startThread()
+std::thread* Worker::startThread()
 {
-    m_Thread = new std::thread(std::bind(&Worker::loop, this));
+    m_thread = new std::thread(std::bind(&Worker::loop, this));
+    return m_thread;
 }
 
-void Worker::_newConnection(int sockfd, const ConnectionHandler& handler, bool et)
+void Worker::_addConnection(int sockfd, const sockaddr_in& addr, const ConnectionHandler& handler, bool et)
 {
-    Connection* conn = new Connection(this, sockfd, handler, et);
-    m_Connections[sockfd] = conn;
+    Connection* conn = new Connection(this, sockfd, addr, handler, et);
+    m_connections[sockfd] = conn;
     conn->setRemoveConnectionHandler([=](Connection* conn){this->_removeConnection(conn);});
     conn->connectEstablished();
 }
@@ -129,31 +122,29 @@ void Worker::_removeConnection(Connection* conn)
 {
     conn->connectDestroyed();
     int sockfd = conn->getSockfd();
-    m_Connections.erase(sockfd);
+    m_connections.erase(sockfd);
     SAFE_DELETE(conn);
-    DEBUG("worker=%p, sock=%d, conn %d\n", this, sockfd, (int)m_Connections.size());
+    DEBUG("worker=%p, sock=%d, conn %d\n", this, sockfd, (int)m_connections.size());
 }
 
 void Worker::_handlePendingNewConnections()
 {
-    m_handlePendingNewConnections = true;
-    std::vector<NewConnectionParams> tmp;
+    std::vector<NewConnectionParam> tmp;
     {
-        std::unique_lock<std::mutex> lock(m_PendingNewConnectionsMutex);
-        tmp.swap(m_PendingNewConnections); // swap just in case functor call queue again to add new functor
-        DEBUG("worker=%p, tmp size=%d\n", this, (int)tmp.size());
+        std::unique_lock<std::mutex> lock(m_pendingNewConnectionsMutex);
+        tmp.swap(m_pendingNewConnections); // swap just in case functor call queue again to add new functor
+        TRACE("worker=%p, tmp size=%d\n", this, (int)tmp.size());
     }
-    for (auto& params : tmp)
+    for (auto& param : tmp)
     {
-        _newConnection(params.m_sockfd, params.m_Handler, params.m_et);
+        _addConnection(param.m_sockfd, param.m_sockaddr, param.m_handler, param.m_et);
     }
-    m_handlePendingNewConnections = false;
 }
 
-void Worker::_handleWakeupRead()
+void Worker::_handleWakeupRead(time_t time)
 {
     uint64_t tmp = 1;
-    ssize_t n = network::read(m_WakeupFd, &tmp, sizeof(tmp));
+    ssize_t n = network::read(m_wakeupFd, &tmp, sizeof(tmp));
     if (n != sizeof(tmp))
     {
         ERROR("_handleWakeupRead failed, n=%d\n", (int)n);
@@ -163,7 +154,7 @@ void Worker::_handleWakeupRead()
 void Worker::_wakeup()
 {
     uint64_t tmp = 1;
-    ssize_t n = network::write(m_WakeupFd, &tmp, sizeof(tmp));
+    ssize_t n = network::write(m_wakeupFd, &tmp, sizeof(tmp));
     if (n != sizeof(tmp))
     {
         ERROR("_wakeup failed, n=%d\n", (int)n);

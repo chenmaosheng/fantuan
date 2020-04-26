@@ -6,18 +6,29 @@
 
 namespace fantuan
 {
-class Connection;
 class Worker;
 class Context
 {
 public:
-    enum State { NEW, ADDED, DELETED};
+    enum State { NEW, ADDED, DELETED };
     Context(Worker* worker, int sockfd);
     ~Context();
 
-    void setHandler(const ContextHandler& handler)
+    void setReadHandler(OnReadEvent handler)
     {
-        m_handler = std::move(handler);
+        m_readHandler = std::move(handler);
+    }
+    void setWriteHandler(OnEvent handler)
+    {
+        m_writeHandler = std::move(handler);
+    }
+    void setCloseHandler(OnEvent handler)
+    {
+        m_closeHandler = std::move(handler);
+    }
+    void setErrorHandler(OnEvent handler)
+    {
+        m_errorHandler = std::move(handler);
     }
     void handleEvent();
     int getSockFd() const
@@ -27,11 +38,7 @@ public:
 
     int getEvents() const
     {
-        return m_Events;
-    }
-    void setActiveClose()
-    {
-        m_activeClose = true;
+        return m_events;
     }
 
     void setActiveEvents(int events)
@@ -39,18 +46,50 @@ public:
         m_activeEvents = events;
     }
 
-    void enableWriting(bool et = false);
-    void disableWriting();
-    void enableReading(bool et = false);
-    void disableReading();
-    void disableAll();
+    void setActiveClose()
+    {
+        m_activeClose = true;
+    }
+
+    void enableWriting(bool et = false)
+    {
+        if (et) m_events |= EPOLLET;
+        m_events |= EPOLLOUT;
+        _update();
+    }
+
+    void disableWriting()
+    {
+        m_events &= ~EPOLLOUT;
+        _update();
+    }
+
+    void enableReading(bool et = false)
+    {
+        if (et) m_events |= EPOLLET;
+        m_events |= (EPOLLIN | EPOLLPRI);
+        _update();
+    }
+
+    void disableReading()
+    {
+        m_events &= ~(EPOLLIN | EPOLLPRI);
+        _update();
+    }
+
+    void disableAll()
+    {
+        m_events = 0;
+        _update();
+    }
+    
     bool isWriting() const
     {
-        return m_Events & EPOLLOUT;
+        return m_events & EPOLLOUT;
     }
     bool isReading() const
     {
-        return m_Events & (EPOLLIN | EPOLLPRI);
+        return m_events & (EPOLLIN | EPOLLPRI);
     }
     void setState(State state)
     {
@@ -66,13 +105,16 @@ private:
     void _update();
 
 private:
-    const int m_sockfd;
-    int m_Events;
-    int m_activeEvents;
-    ContextHandler m_handler;
-    State m_state;
-    Worker* m_Worker;
-    bool m_activeClose;
+    Worker*     m_worker;
+    const int   m_sockfd;
+    int         m_events;
+    int         m_activeEvents;
+    State       m_state;
+    bool        m_activeClose;
+    OnReadEvent m_readHandler;
+    OnEvent     m_writeHandler;
+    OnEvent     m_closeHandler;
+    OnEvent     m_errorHandler;
 };
 }
 

@@ -1,16 +1,15 @@
 #include "context.h"
-#include "connection.h"
-#include <stdio.h>
 #include "worker.h"
+#include "utils.h"
 
 namespace fantuan
 {
 Context::Context(Worker* worker, int sockfd) :
+    m_worker(worker),
     m_sockfd(sockfd),
-    m_Events(0),
+    m_events(0),
     m_activeEvents(0),
     m_state(NEW),
-    m_Worker(worker),
     m_activeClose(false)
 {
 
@@ -23,18 +22,19 @@ Context::~Context()
 
 void Context::handleEvent()
 {
-    if (!m_activeClose && (m_activeEvents & EPOLLERR))
+    if (!m_activeClose && (m_activeEvents & EPOLLERR) && m_errorHandler)
     {
-        m_handler.m_ErrorHandler();
+        m_errorHandler();
     }
-    if (!m_activeClose && (m_activeEvents & (EPOLLIN | EPOLLPRI | EPOLLRDHUP))) // EPOLLRDHUP means target close or shutdown write
+    if (!m_activeClose && (m_activeEvents & (EPOLLIN | EPOLLPRI | EPOLLRDHUP)) && m_readHandler) 
+    // EPOLLRDHUP means target close or shutdown write
     // EPOLLHUP means self call shutdown RDWR, must not be close, close will invalidate file descriptor
     {
-        m_handler.m_ReadHandler();
+        m_readHandler(now());
     }
-    if (!m_activeClose && (m_activeEvents & EPOLLOUT))
+    if (!m_activeClose && (m_activeEvents & EPOLLOUT) && m_writeHandler)
     {
-        m_handler.m_WriteHandler();
+        m_writeHandler();
     }
     if (!m_activeClose && (m_activeEvents & EPOLLRDHUP))
     {
@@ -42,50 +42,18 @@ void Context::handleEvent()
     }
     if (m_activeClose)
     {
-        m_handler.m_CloseHandler();
+        m_closeHandler();
     }
-}
-
-void Context::enableWriting(bool et)
-{
-    if (et) m_Events |= EPOLLET;
-    m_Events |= EPOLLOUT;
-    _update();
-}
-
-void Context::disableWriting()
-{
-    m_Events &= ~EPOLLOUT;
-    _update();
-}
-
-void Context::enableReading(bool et)
-{
-    if (et) m_Events |= EPOLLET;
-    m_Events |= (EPOLLIN | EPOLLPRI);
-    _update();
-}
-
-void Context::disableReading()
-{
-    m_Events &= ~(EPOLLIN | EPOLLPRI);
-    _update();
-}
-
-void Context::disableAll()
-{
-    m_Events = 0;
-    _update();
 }
 
 void Context::remove()
 {
-    m_Worker->removeContext(this);
+    m_worker->removeContext(this);
 }
 
 void Context::_update()
 {
-    m_Worker->updateContext(this);
+    m_worker->updateContext(this);
 }
 
 }

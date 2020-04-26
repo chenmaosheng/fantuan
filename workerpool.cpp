@@ -1,6 +1,7 @@
 #include "workerpool.h"
 #include "worker.h"
-#include "common/utils.h"
+#include "utils.h"
+#include <pthread.h>
 
 namespace fantuan
 {
@@ -9,32 +10,37 @@ WorkerPool::WorkerPool(Worker* mainWorker, int numThreads) :
     m_nextThreadIndex(0),
     m_mainWorker(mainWorker)
 {
-
+    CPU_ZERO(&m_cpuAffinityMask[0]);
+    CPU_SET(0, &m_cpuAffinityMask[0]);
+    pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &m_cpuAffinityMask[0]);
 }
 
 WorkerPool::~WorkerPool()
 {
     for (int i = 0; i < m_numThreads; ++i)
     {
-        SAFE_DELETE(m_Workers[i]);
+        SAFE_DELETE(m_workers[i]);
     }
-    m_Workers.clear();
+    m_workers.clear();
 }
 
 void WorkerPool::start()
 {
-    for (int i = 0; i < m_numThreads; ++i)
+    for (int i = 1; i <= m_numThreads; ++i)
     {
         Worker* worker = new Worker;
-        worker->startThread();
-        m_Workers.push_back(worker);
+        CPU_ZERO(&m_cpuAffinityMask[i]);
+        CPU_SET(i, &m_cpuAffinityMask[i]);
+        std::thread* thread = worker->startThread();
+        pthread_setaffinity_np(thread->native_handle(), sizeof(cpu_set_t), &m_cpuAffinityMask[i]);
+        m_workers.push_back(worker);
     }
 }
 
 Worker* WorkerPool::getNext()
 {
-    if (m_Workers.empty()) return m_mainWorker;
-    Worker* worker = m_Workers[m_nextThreadIndex];
+    if (m_workers.empty()) return m_mainWorker;
+    Worker* worker = m_workers[m_nextThreadIndex];
     m_nextThreadIndex++;
     if (m_nextThreadIndex == m_numThreads)
     {

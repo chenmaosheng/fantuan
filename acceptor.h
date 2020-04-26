@@ -2,47 +2,41 @@
 #define _H_ACCEPTOR
 
 #include <stdint.h>
-#include "context.h"
+#include "handler.h"
 
 namespace fantuan
 {
 class Worker;
 class WorkerPool;
+class Context;
 class Acceptor
 {
 public:
     Acceptor(uint16_t port, int numThreads=0, bool et=false);
     ~Acceptor();
 
-    bool isListening() const
+    void    start();
+    void    setHandler(ConnectionHandler handler)
     {
-        return m_Listening;
+        m_handler = std::move(handler);
     }
-
-    void listen();
-    int handleRead();
-    // server
-    void setHandler(const ConnectionHandler& handler)
-    {
-        m_Handler = std::move(handler);
-    }
-    void start();
 
 private:
-    void _newConnection(int sockfd);
+    void    _listen();
+    int     _handleRead(time_t time);
+    void    _addNewConnection(int sockfd, const sockaddr_in& addr);
 
 private:
     // server
-    Worker* m_AcceptorWorker;
-    WorkerPool* m_WorkerPool;
-    ConnectionHandler m_Handler;
+    Worker*             m_mainWorker;
+    WorkerPool*         m_workerPool;
+    ConnectionHandler   m_handler;
     // accept
-    int m_acceptfd;
-    int m_idlefd;
-    bool m_Listening;
-    Worker* m_Worker;
-    Context m_AcceptContext;
-    bool m_et;
+    int                 m_acceptfd;
+    int                 m_idlefd;
+    Context*            m_context;
+    bool                m_et;
+
 };
 }
 

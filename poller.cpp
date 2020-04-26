@@ -1,20 +1,17 @@
 #include "poller.h"
 #include "context.h"
+#include "utils.h"
+#include "network.h"
 #include <assert.h>
-#include "common/utils.h"
 #include <strings.h>
 #include <unistd.h>
 
 namespace fantuan
 {
 Poller::Poller() :
-    m_EventList(m_InitEventListSize)
+    m_epollfd(network::createepoll()),
+    m_eventList(m_initEventListSize)
 {
-    m_epollfd = ::epoll_create1(EPOLL_CLOEXEC);
-    if (m_epollfd < 0)
-    {
-        assert(false && "create epoll failed");
-    }
 }
 
 Poller::~Poller()
@@ -24,24 +21,24 @@ Poller::~Poller()
 
 void Poller::poll(std::vector<Context*>& activeContexts, int timeout)
 {
-    int n = epoll_wait(m_epollfd, &*m_EventList.begin(), m_EventList.size(), timeout);
+    int n = epoll_wait(m_epollfd, &*m_eventList.begin(), m_eventList.size(), timeout);
     if (n > 0)
     {
         for (int i = 0; i < n; ++i)
         {
-            Context* context = (Context*)m_EventList[i].data.ptr;
-            context->setActiveEvents(m_EventList[i].events);
+            Context* context = (Context*)m_eventList[i].data.ptr;
+            context->setActiveEvents(m_eventList[i].events);
             activeContexts.push_back(context);
         }
-        if (n == m_EventList.size())
+        if (n == (int)m_eventList.size())
         {
-            m_EventList.resize(m_EventList.size()*2);
-            ALERT("new event list size: %d\n", (int)m_EventList.size());
+            m_eventList.resize(m_eventList.size()*2);
+            ALERT("new event list size: %d\n", (int)m_eventList.size());
         }
     }
     else if (n == 0)
     {
-        // TODO: trace
+        TRACE("no event from epoll_wait, n=%d\n", n);
     }
     else
     {

@@ -7,31 +7,32 @@
 
 namespace fantuan
 {
+template<size_t maxSize = 16*1024>
 struct Buffer
 {
-    Buffer() : sentIndex(0), pendingIndex(0)
+    Buffer() : m_sentIndex(0), m_pendingIndex(0)
     {
-        bzero(buffer, sizeof(buffer));
+        bzero(m_buffer, sizeof(m_buffer));
     }
 
     size_t pendingBytes() const
     {
-        return pendingIndex - sentIndex;
+        return m_pendingIndex - m_sentIndex;
     }
 
     size_t availBytes() const
     {
-        return maxSize - pendingIndex;
+        return maxSize - m_pendingIndex;
     }
 
     const char* peek() const
     {
-        return buffer + sentIndex;
+        return m_buffer + m_sentIndex;
     }
 
     size_t getSentIndex() const
     {
-        return sentIndex;
+        return m_sentIndex;
     }
 
     void append(const char* data, size_t len)
@@ -44,12 +45,12 @@ struct Buffer
         {
             if (len > availBytes())
             {
-                memmove(buffer, buffer+sentIndex, maxSize - sentIndex);
-                pendingIndex -= sentIndex;
-                sentIndex = 0;
+                memmove(m_buffer, m_buffer+m_sentIndex, maxSize - m_sentIndex);
+                m_pendingIndex -= m_sentIndex;
+                m_sentIndex = 0;
             }
-            memcpy(buffer+pendingIndex, data, len);
-            pendingIndex += len;
+            memcpy(m_buffer+m_pendingIndex, data, len);
+            m_pendingIndex += len;
         }
     }
 
@@ -58,14 +59,13 @@ struct Buffer
         assert(len <= pendingBytes());
         if (len <= pendingBytes())
         {
-            sentIndex += len;
+            m_sentIndex += len;
         }
     }
 
-    const static size_t maxSize = 1024*8; // 8KB
-    char buffer[maxSize];
-    size_t sentIndex;
-    size_t pendingIndex;
+    char    m_buffer[maxSize];
+    size_t  m_sentIndex;
+    size_t  m_pendingIndex;
 };
 }
 

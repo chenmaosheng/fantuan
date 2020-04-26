@@ -1,11 +1,13 @@
 #include "network.h"
-#include <errno.h>
 #include <sys/socket.h>
-#include <sys/uio.h>  // readv
+#include <netinet/tcp.h>
+#include <sys/epoll.h>
 #include <unistd.h>
 #include <strings.h>
 #include <assert.h>
-#include <netinet/tcp.h>
+#include <errno.h>
+#include <sys/eventfd.h>
+#include <stdlib.h>
 
 namespace fantuan
 {
@@ -13,13 +15,34 @@ namespace network
 {
 int createsocket()
 {
-    int sockfd = ::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+    int sockfd = ::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, IPPROTO_IP);
     if (sockfd < 0)
     {
         assert(false && "createsocket failed");
         return -1;
     }
     return sockfd;
+}
+
+int createepoll()
+{
+    int epollfd = ::epoll_create1(EPOLL_CLOEXEC);
+    if (epollfd < 0)
+    {
+        assert(false && "create epoll failed");
+    }
+    return epollfd;
+}
+
+int createeventfd()
+{
+    int eventfd = ::eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+    if (eventfd < 0)
+    {
+        assert(false && "create event fd failed");
+        abort();
+    }
+    return eventfd;
 }
 
 void bind(int sockfd, uint16_t port)
@@ -45,12 +68,11 @@ void listen(int sockfd)
     }
 }
 
-int accept(int sockfd)
+int accept(int sockfd, sockaddr_in& clientAddr)
 {
-    sockaddr_in addr;
-    socklen_t in_len = sizeof(sockaddr_in);
-    bzero(&addr, sizeof(sockaddr_in));
-    int connfd = ::accept4(sockfd, (sockaddr*)&addr, &in_len, SOCK_NONBLOCK | SOCK_CLOEXEC);
+    socklen_t len = (socklen_t)sizeof(sockaddr_in);
+    bzero(&clientAddr, sizeof(sockaddr_in));
+    int connfd = ::accept4(sockfd, (sockaddr*)&clientAddr, &len, SOCK_NONBLOCK | SOCK_CLOEXEC);
     if (connfd < 0)
     {
         int err = errno;
@@ -62,7 +84,6 @@ int accept(int sockfd)
             case EPROTO:
             case EPERM:
             case EMFILE:
-                errno = err;
                 break;
             default:
                 assert(false && "accept: unexcepted error");
@@ -75,11 +96,6 @@ int accept(int sockfd)
 ssize_t read(int sockfd, void* buf, size_t count)
 {
     return ::read(sockfd, buf, count);
-}
-
-ssize_t readv(int sockfd, const iovec* iov, int count)
-{
-    return ::readv(sockfd, iov, count);
 }
 
 ssize_t write(int sockfd, const void* buf, size_t count)
@@ -95,9 +111,10 @@ void close(int sockfd)
     }
 }
 
-void shutdownWR(int sockfd)
+void shutdown(int sockfd, bool write)
 {
-    if (::shutdown(sockfd, SHUT_WR) < 0)
+    int how = write ? SHUT_WR : SHUT_RDWR;
+    if (::shutdown(sockfd, how) < 0)
     {
         assert(false && "shutdown error");
     }

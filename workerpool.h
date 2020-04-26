@@ -2,6 +2,7 @@
 #define _H_WORKERPOOL
 
 #include <vector>
+#include <sched.h>
 
 namespace fantuan
 {
@@ -12,15 +13,15 @@ public:
     WorkerPool(Worker* mainWorker, int numThreads);
     ~WorkerPool();
     
-    const std::vector<Worker*>& getWorkers() const { return m_Workers; }
-    void start();
+    void    start();
     Worker* getNext();
 
 private:
-    int m_numThreads;
-    int m_nextThreadIndex;
-    std::vector<Worker*> m_Workers;
-    Worker* m_mainWorker;
+    int                     m_numThreads;
+    int                     m_nextThreadIndex;
+    std::vector<Worker*>    m_workers;
+    Worker*                 m_mainWorker;
+    cpu_set_t               m_cpuAffinityMask[128];
 };
 }
 

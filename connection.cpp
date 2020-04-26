@@ -1,47 +1,137 @@
 #include "connection.h"
 #include "context.h"
+#include "utils.h"
+#include "worker.h"
+#include "network.h"
 #include <strings.h>
 #include <errno.h>
-#include <stdio.h>
-#include "network.h"
 #include <string.h>
 #include <assert.h>
-#include "common/utils.h"
-#include "worker.h"
 
 namespace fantuan
 {
-Connection::Connection(Worker* worker, int sockfd, const ConnectionHandler& handler, bool et) :
+Connection::Connection(Worker* worker, int sockfd, const sockaddr_in& addr, const ConnectionHandler& handler, bool et) :
+    m_worker(worker),
     m_sockfd(sockfd),
-    m_Context(new Context(worker, sockfd)),
-    m_Handler(handler),
-    m_State(CONNECTING),
-    m_Worker(worker),
+    m_sockaddr(addr),
+    m_context(new Context(worker, sockfd)),
+    m_handler(handler),
+    m_state(CONNECTING),
     m_et(et)
 {
-    bzero(&m_InputBuffer, sizeof(m_InputBuffer));
-    ContextHandler contextHandler;
-    contextHandler.m_ReadHandler = [=](){this->handleRead();};
-    contextHandler.m_WriteHandler = [=](){this->handleWrite();};
-    contextHandler.m_ErrorHandler = [=](){this->handleError();};
-    contextHandler.m_CloseHandler = [=](){this->handleClose();};
-    m_Context->setHandler(contextHandler);
+    bzero(&m_inputBuffer, sizeof(m_inputBuffer));
+    m_context->setReadHandler([=](int64_t time){this->_handleRead(time);});
+    m_context->setWriteHandler([=](){this->_handleWrite();});
+    m_context->setErrorHandler([=](){this->_handleError();});
+    m_context->setCloseHandler([=](){this->_handleClose();});
     network::setKeepAlive(m_sockfd, true);
 }
 
 Connection::~Connection()
 {
-    assert(m_State == DISCONNECTED);
-    SAFE_DELETE(m_Context);
+    assert(m_state == DISCONNECTED);
+    SAFE_DELETE(m_context);
 }
 
-void Connection::handleRead()
+void Connection::shutdown()
 {
-    if (m_State != CONNECTED) return;
+    if (m_state == CONNECTED)
+    {
+        m_state = DISCONNECTING;
+        if (!m_context->isWriting())
+        {
+            network::shutdown(m_sockfd);
+        }
+    }
+}
+
+void Connection::send(const void* data, uint32_t len)
+{
+    if (m_state != CONNECTED) return;
+    ssize_t nwrote = 0;
+    size_t remaining = len;
+    bool fatalError = false;
+    if ((!m_et && !m_context->isWriting() && m_outputBuffer.pendingBytes() == 0) ||
+        (m_et && m_outputBuffer.pendingBytes() == 0))
+    {
+        nwrote = network::write(m_sockfd, data, len);
+        if (nwrote >= 0)
+        {
+            TRACE("sock=%d, write: %ld\n", m_sockfd, nwrote);
+            remaining = len - nwrote;
+            if (remaining == 0)
+            {
+                if (m_handler.m_sendData)
+                {
+                    m_handler.m_sendData(this);
+                }
+                return;
+            }
+        }
+        else
+        {
+            nwrote = 0;
+            // TODO: what about EINTR
+            // EAGAIN means send buffer is full
+            if (errno != EAGAIN && errno != EWOULDBLOCK)
+            {
+                ERROR("sock=%d, send error: %d\n", m_sockfd, errno);
+                //assert(false && "send error");
+                if (errno == EPIPE || errno == ECONNRESET)
+                {
+                    fatalError = true;
+                }
+            }
+        }
+    }
+    if (fatalError)
+    {
+        _handleError();
+    }
+    else if (remaining > 0)
+    {
+        DEBUG("sock=%d, avail=%d, remaining=%d, sentIndex=%d\n", m_sockfd, 
+            (int)m_outputBuffer.availBytes(), (int)remaining, (int)m_outputBuffer.getSentIndex());
+        m_outputBuffer.append((char*)data+nwrote, remaining);
+        if (!m_et && !m_context->isWriting())
+        {
+            DEBUG("sock=%d, enableWriting\n", m_sockfd);
+            m_context->enableWriting();
+        }
+    }
+}
+
+void Connection::connectEstablished()
+{
+    assert(m_state == CONNECTING);
+    TRACE("sock=%d, connectEstablished\n", m_sockfd);
+    m_state = CONNECTED;
+    m_context->enableReading(m_et);
+    if (m_et) m_context->enableWriting(m_et);
+    if (m_handler.m_onConnection)
+    {
+        m_handler.m_onConnection(this);
+    }
+}
+
+void Connection::connectDestroyed()
+{
+    if (m_state == CONNECTED)
+    {
+        m_state = DISCONNECTED;
+        m_context->disableAll();
+    }
+    m_worker->removeContext(m_context);
+    DEBUG("sock=%d, connection destroyed\n", m_sockfd);
+}
+
+void Connection::_handleRead(time_t time)
+{
+    if (m_state != CONNECTED) return;
     ssize_t count, n = 0;
     do
     {
-        count = network::read(m_sockfd, m_InputBuffer+n, sizeof(m_InputBuffer)-n);
+        count = network::read(m_sockfd, m_inputBuffer+n, sizeof(m_inputBuffer)-n);
         if (count < 0)
         {
             // another signal captured caused this error, need to try again
@@ -54,64 +144,64 @@ void Connection::handleRead()
             {
                 // EPIPE or ECONNREST or others
                 assert(false && "read error");
-                handleError();
+                _handleError();
                 return;
             }
         }
         if (count == 0)
         {
             DEBUG("sock=%d, leave\n", m_sockfd);
-            m_Context->setActiveClose();
+            m_context->setActiveClose();
             return;
         }
         n+=count;
-        if (m_et && n == sizeof(m_InputBuffer))
+        if (m_et && n == sizeof(m_inputBuffer))
         {
             DEBUG("sock=%d, read full: %ld\n", m_sockfd, n);
             // reach buffer maxsize, need to notify user, et only
-            if (m_Handler.m_OnData)
+            if (m_handler.m_onData)
             {
-                m_Handler.m_OnData(this, (uint16_t)n, m_InputBuffer);
+                m_handler.m_onData(this, (uint16_t)n, m_inputBuffer);
             }
-            bzero(&m_InputBuffer, sizeof(m_InputBuffer));
+            bzero(&m_inputBuffer, sizeof(m_inputBuffer));
             n = 0;
         }
-    } while (n<sizeof(m_InputBuffer));
+    } while (n < (ssize_t)sizeof(m_inputBuffer));
     
     if (n > 0)
     {
         TRACE("sock=%d, read: %ld\n", m_sockfd, n);
-        if (m_Handler.m_OnData)
+        if (m_handler.m_onData)
         {
-            m_Handler.m_OnData(this, (uint16_t)n, m_InputBuffer);
+            m_handler.m_onData(this, (uint16_t)n, m_inputBuffer);
         }
         // TEST SEND FLOW
         if (count > 0 || errno == EAGAIN)
-            send(m_InputBuffer, n);
+            send(m_inputBuffer, n);
     }
 }
 
-void Connection::handleWrite()
+void Connection::_handleWrite()
 {
-    if (m_State != CONNECTED) return;
-    if (m_Context->isWriting())
+    if (m_state != CONNECTED) return;
+    if (m_context->isWriting())
     {
-        while (m_OutputBuffer.pendingBytes() != 0)
+        while (m_outputBuffer.pendingBytes() != 0)
         {
-            ssize_t count = network::write(m_sockfd, m_OutputBuffer.peek(), m_OutputBuffer.pendingBytes());
+            ssize_t count = network::write(m_sockfd, m_outputBuffer.peek(), m_outputBuffer.pendingBytes());
             if (count >= 0)
             {
-                m_OutputBuffer.retrieve(count);
+                m_outputBuffer.retrieve(count);
                 DEBUG("sock=%d, handleWrite: %ld\n", m_sockfd, count);
-                if (m_OutputBuffer.pendingBytes() == 0)
+                if (m_outputBuffer.pendingBytes() == 0)
                 {
                     if (!m_et)
                     {
                         DEBUG("sock=%d, disablewrite\n", m_sockfd);
-                        m_Context->disableWriting();
+                        m_context->disableWriting();
                     }
                     // TODO: write complete callback
-                    if (m_State == DISCONNECTING)
+                    if (m_state == DISCONNECTING)
                     {
                         shutdown();
                     }
@@ -143,112 +233,23 @@ void Connection::handleWrite()
     }
 }
 
-void Connection::handleClose()
+void Connection::_handleClose()
 {
-    assert(m_State == CONNECTED || m_State == DISCONNECTING);
-    m_State = DISCONNECTED;
-    m_Context->disableAll();
-    if (m_Handler.m_OnDisconnected)
+    assert(m_state == CONNECTED || m_state == DISCONNECTING);
+    m_state = DISCONNECTED;
+    m_context->disableAll();
+    if (m_handler.m_onDisconnected)
     {
-        m_Handler.m_OnDisconnected(this);
+        m_handler.m_onDisconnected(this);
     }
-    m_RemoveConnectionHandler(this);
+    m_removeConnectionHandler(this);
 }
 
-void Connection::handleError()
+void Connection::_handleError()
 {
     int err = network::getsockerror(m_sockfd);
     ERROR("sock=%d, network error, err=%d\n", m_sockfd, err);
     //assert(false && "network error");
-}
-
-void Connection::shutdown()
-{
-    if (m_State == CONNECTED)
-    {
-        m_State = DISCONNECTING;
-        if (!m_Context->isWriting())
-        {
-            network::shutdownWR(m_sockfd);
-        }
-    }
-}
-
-void Connection::send(const void* data, uint32_t len)
-{
-    if (m_State != CONNECTED) return;
-    ssize_t nwrote = 0;
-    size_t remaining = len;
-    bool fatalError = false;
-    if ((!m_et && !m_Context->isWriting() && m_OutputBuffer.pendingBytes() == 0) ||
-        (m_et && m_OutputBuffer.pendingBytes() == 0))
-    {
-        nwrote = network::write(m_sockfd, data, len);
-        if (nwrote >= 0)
-        {
-            TRACE("sock=%d, write: %ld\n", m_sockfd, nwrote);
-            remaining = len - nwrote;
-            if (remaining == 0)
-            {
-                // TODO: write complete callback
-                return;
-            }
-        }
-        else
-        {
-            nwrote = 0;
-            // TODO: what about EINTR
-            // EAGAIN means send buffer is full
-            if (errno != EAGAIN && errno != EWOULDBLOCK)
-            {
-                ERROR("sock=%d, send error: %d\n", m_sockfd, errno);
-                //assert(false && "send error");
-                if (errno == EPIPE || errno == ECONNRESET)
-                {
-                    fatalError = true;
-                }
-            }
-        }
-    }
-    if (fatalError)
-    {
-        handleError();
-    }
-    else if (remaining > 0)
-    {
-        DEBUG("sock=%d, avail=%d, remaining=%d, sentIndex=%d\n", m_sockfd, 
-            (int)m_OutputBuffer.availBytes(), (int)remaining, (int)m_OutputBuffer.getSentIndex());
-        m_OutputBuffer.append((char*)data+nwrote, remaining);
-        if (!m_et && !m_Context->isWriting())
-        {
-            DEBUG("sock=%d, enableWriting\n", m_sockfd);
-            m_Context->enableWriting();
-        }
-    }
-}
-
-void Connection::connectEstablished()
-{
-    assert(m_State == CONNECTING);
-    TRACE("sock=%d, connectEstablished\n", m_sockfd);
-    m_State = CONNECTED;
-    m_Context->enableReading(m_et);
-    if (m_et) m_Context->enableWriting(m_et);
-    if (m_Handler.m_OnConnection)
-    {
-        m_Handler.m_OnConnection(this);
-    }
-}
-
-void Connection::connectDestroyed()
-{
-    if (m_State == CONNECTED)
-    {
-        m_State = DISCONNECTED;
-        m_Context->disableAll();
-    }
-    m_Worker->removeContext(m_Context);
-    DEBUG("sock=%d, connection destroyed\n", m_sockfd);
 }
 
 
