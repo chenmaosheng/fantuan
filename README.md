@@ -1,6 +1,6 @@
 fantuan
 
-参考chen shuo的muduo所写的epoll LT简化版,代码量少很多,主要包括以下几块:
+epoll LT/ET简化版,代码量很少,主要包括以下几块:
 
 1,network.h/cpp
 包裹了比较重要的socket函数
@@ -20,5 +20,5 @@ fantuan
 6,connection.h/cpp
 定义了connection,包含了connection的read/write/close/error handling
 
-目前版本是单线程的, 可能还存在一些小bug, 不过大致上是可以成功运行了, 做了一些简单的测试.
+目前版本是支持单线程和多线程的, 可能还存在一些小bug, 不过大致上是可以成功运行了, 做了一些简单的测试.
 局域网内6000个连接,每个连接每秒发2KB数据收2KB数据,服务器运行稳定,CPU使用率15%左右(软中断CPU消耗不算但很高),单核2.6GHZ, L1 256KB.
